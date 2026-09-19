@@ -164,8 +164,21 @@ input,textarea{font:inherit;color:var(--text)}
 .menu-list button:last-child{border-bottom:0}
 .menu-list button.danger{color:var(--danger)}
 .menu-list button:active{background:var(--line)}
-.warnbar{background:#ff950022;color:#c86a00;font-size:12.5px;padding:9px 14px;text-align:center}
+.warnbar{background:#ff950022;color:#c86a00;font-size:12.5px;padding:9px 14px;text-align:center;line-height:1.6}
 @media (prefers-color-scheme:dark){.warnbar{color:#ffb340}}
+.warnbar button{color:inherit;text-decoration:underline;font-weight:700;font-size:12.5px;margin-left:4px}
+.warnbar.danger{background:#ff3b3022;color:#d70015}
+@media (prefers-color-scheme:dark){.warnbar.danger{color:#ff6961}}
+.toast{position:fixed;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 64px);z-index:200;
+  background:#1c1c1e;color:#fff;border-radius:12px;padding:13px 14px;display:flex;align-items:center;gap:12px;
+  font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+@media (prefers-color-scheme:dark){.toast{background:#2c2c2e}}
+.toast .msg{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast button{color:#0a84ff;font-weight:600;font-size:14px;flex:none}
+.snap{margin-bottom:10px;padding:12px 14px;background:var(--bg);border-radius:10px}
+.snap .t{font-size:13.5px;font-weight:600;margin-bottom:3px}
+.snap .d{font-size:11.5px;color:var(--muted);margin-bottom:9px}
+.snap button{font-size:13px;color:var(--accent);font-weight:600}
 </style>
 </head>
 <body>
@@ -176,7 +189,8 @@ input,textarea{font:inherit;color:var(--text)}
   <button class="iconbtn" id="btnMenu" aria-label="数据管理">⋯</button>
 </div>
 
-<div id="storeWarn" class="warnbar hidden">⚠️ 本浏览器不允许本地存储，数据在关闭页面后会丢失。请定期导出备份。</div>
+<div id="storeWarn" class="warnbar hidden"></div>
+<div id="corruptWarn" class="warnbar danger hidden"></div>
 
 <!-- ========== 主页 ========== -->
 <div class="page" id="page-home">
@@ -194,7 +208,7 @@ input,textarea{font:inherit;color:var(--text)}
     <button data-rtype="interval">周期</button>
     <button data-rtype="someday">长期</button>
   </div>
-  <div class="scrollarea">
+  <div class="scrollarea" id="recurScroll">
     <div class="rlist" id="recurList"></div>
     <div class="r-empty hidden" id="recurEmpty"></div>
   </div>
@@ -221,11 +235,16 @@ input,textarea{font:inherit;color:var(--text)}
       <button id="btnExport">导出备份（JSON）</button>
       <button id="btnImport">导入备份（JSON）</button>
       <button id="btnCopy">复制备份到剪贴板</button>
+      <button id="btnSnapshots">从自动快照恢复</button>
       <button class="danger" id="btnClear">清空全部数据</button>
+    </div>
+    <div id="snapBox" class="hidden" style="padding:14px">
+      <div id="snapList"></div>
     </div>
     <p style="padding:16px 18px;font-size:12.5px;color:var(--muted);line-height:1.7">
       数据只保存在这台设备的浏览器里，不上传任何服务器。<br>
-      浏览器清理缓存或卸载时可能连同数据一起删除，<b>建议每周导出一次备份</b>。
+      每天第一次打开会自动留一份快照（保留最近 3 份），误删或数据异常时可从这里恢复。<br>
+      <b>仍建议每周导出一次备份</b>——清理浏览器缓存或卸载时，本地数据会一并消失。
     </p>
   </div>
 </div>
@@ -303,6 +322,8 @@ input,textarea{font:inherit;color:var(--text)}
   <button data-tab="stats"><span class="ic">📊</span>数据统计</button>
 </nav>
 
+<div id="toast" class="toast hidden"><span class="msg" id="toastMsg"></span><button id="toastAct" class="hidden">撤销</button></div>
+
 <script>
 (function(){
 'use strict';
@@ -310,8 +331,13 @@ input,textarea{font:inherit;color:var(--text)}
 /* ============ 常量 ============ */
 var KEY = 'dsh.todo.v2';
 var OLD_KEY = 'dsh.todo.v1';
+var CORRUPT_KEY = 'dsh.todo.corrupt';
+var SNAP_KEY = 'dsh.todo.snapshots';
+var SNAP_META = 'dsh.todo.snapmeta';
+var SNAP_MAX = 3;
 var SHOW_MAX = 3;
 var DAY = 86400000;
+var DAY_OFFSET = 4 * 3600000;   // 「一天」从凌晨 4 点算起
 var QCOLORS = ['#ff3b30','#ff9500','#34c759','#a1a1a6'];
 var LOG_MAX = 6000;
 
@@ -324,8 +350,8 @@ var QUADS = [
 var SHORT_Q = ['重要紧急','不重要紧急','重要不紧急','不重要不紧急'];
 
 var RTYPES = {
-  daily:   {label:'日度待办', empty:'还没有日度待办', tip:'每天 0 点后自动刷新为未完成。<br>比如「每天喝水 2L」「每天读 30 分钟」'},
-  interval:{label:'周期待办', empty:'还没有周期待办', tip:'按你设定的天数自动刷新。<br>比如「每 3 天浇花」「每 7 天复盘」'},
+  daily:   {label:'日度待办', empty:'还没有日度待办', tip:'每天<b>凌晨 4 点</b>后自动刷新为未完成。<br>凌晨 4 点之前算前一天，熬夜到两三点打卡也算当天。<br>比如「每天喝水 2L」「每天读 30 分钟」'},
+  interval:{label:'周期待办', empty:'还没有周期待办', tip:'按你设定的天数，在<b>凌晨 4 点</b>刷新。<br>比如「每 3 天浇花」「每 7 天复盘」'},
   someday: {label:'长期待办', empty:'还没有长期待办', tip:'想做、但当下不方便或还不合适的事。<br>以后有机会再做，或当作一个长期的方向。'}
 };
 
@@ -337,25 +363,142 @@ var editingId = null;
 var draft = { imp:true, urg:true, recur:'none', intervalDays:3 };
 
 /* ============ 存储 ============ */
+var corruptRaw = null;      // 读取失败时保留的原始内容（绝不静默丢弃）
+var saveFailed = false;
+
+function warn(msg, danger){
+  var el = document.getElementById('storeWarn');
+  el.className = 'warnbar' + (danger ? ' danger' : '');
+  el.innerHTML = msg;
+}
+function warnCorrupt(){
+  var el = document.getElementById('corruptWarn');
+  el.innerHTML = '⚠️ 数据读取失败，原始内容已保留，没有被覆盖。'
+               + '<button id="btnCorrupt">下载原始数据</button>'
+               + '<button id="btnCorruptClear">我知道了</button>';
+  el.classList.remove('hidden');
+  document.getElementById('btnCorrupt').onclick = function(){
+    download('佳木待办-损坏数据-'+toDateInput(Date.now())+'.txt', corruptRaw || '', 'text/plain');
+  };
+  document.getElementById('btnCorruptClear').onclick = function(){
+    try{ localStorage.removeItem(CORRUPT_KEY); }catch(e){}
+    el.classList.add('hidden');
+  };
+}
+
 function load(){
+  var raw = null, fromOld = false, parseFailed = false;
+
+  /* 第一步：只判断「能不能读」。存储不可用 ≠ 内容损坏，两者必须分开 */
   try{
-    var raw = localStorage.getItem(KEY);
-    if(!raw) raw = localStorage.getItem(OLD_KEY);   // 兼容上一版数据
-    if(raw){
-      var o = JSON.parse(raw);
-      if(o && Array.isArray(o.todos)) db = o;
-    }
+    raw = localStorage.getItem(KEY);
+    if(!raw){ raw = localStorage.getItem(OLD_KEY); fromOld = !!raw; }
   }catch(e){ storageOK = false; }
-  if(!db.log) db.log = [];
+
   if(!storageOK){
     try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); storageOK = true; }
     catch(e){ storageOK = false; }
+    if(!storageOK) warn('⚠️ 本浏览器不允许本地存储，数据在关闭页面后会丢失。请定期导出备份。', true);
   }
-  if(!storageOK) document.getElementById('storeWarn').classList.remove('hidden');
+
+  /* 第二步：解析。失败时保留原文，绝不静默清空 */
+  if(raw){
+    try{
+      var o = JSON.parse(raw);
+      if(o && Array.isArray(o.todos)) db = o;
+      else parseFailed = true;
+    }catch(e){ parseFailed = true; }
+
+    if(parseFailed){
+      corruptRaw = raw;
+      try{ localStorage.setItem(CORRUPT_KEY, raw); }catch(e){}
+      warnCorrupt();
+    }else if(fromOld){
+      save();                                       // 迁移到新键
+      try{ localStorage.removeItem(OLD_KEY); }catch(e){}
+    }
+  }
+
+  if(!db.log) db.log = [];
 }
+
 function save(){
   if(!storageOK) return;
-  try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){}
+  try{
+    localStorage.setItem(KEY, JSON.stringify(db));
+    saveFailed = false;
+  }catch(e){
+    if(!saveFailed){
+      saveFailed = true;
+      warn('⚠️ 保存失败，浏览器存储空间可能已满。<b>请立即导出备份</b>，否则新数据会丢。', true);
+    }
+  }
+}
+
+/* 每天首次打开留一份快照，最多 3 份。
+   顺序很重要：先写主数据（save 已在前），再写快照，空间不足时牺牲快照而不是主数据。 */
+function snapshot(){
+  if(!storageOK || saveFailed) return;
+  try{
+    var today = dayStart(Date.now());
+    if(localStorage.getItem(SNAP_META) === String(today)) return;
+    var list = readSnapshots();
+    list.push({ at: Date.now(), todos: db.todos, log: db.log });
+    if(list.length > SNAP_MAX) list = list.slice(-SNAP_MAX);
+    localStorage.setItem(SNAP_KEY, JSON.stringify(list));
+    localStorage.setItem(SNAP_META, String(today));
+  }catch(e){ /* 空间不足就跳过，主数据已经安全 */ }
+}
+function readSnapshots(){
+  try{
+    var v = JSON.parse(localStorage.getItem(SNAP_KEY) || '[]');
+    return Array.isArray(v) ? v : [];
+  }catch(e){ return []; }
+}
+
+/* 导入前做一次轻量校验与归一化，避免脏数据把界面搞崩 */
+function normalizeImport(o){
+  if(!o || !Array.isArray(o.todos)) throw new Error('缺少 todos 数组 —— 可能不是本应用的备份文件');
+  var out = {
+    version: 2,
+    todos: [],
+    log: Array.isArray(o.log) ? o.log.filter(function(e){
+      return e && typeof e === 'object' && e.type && e.id && typeof e.at === 'number';
+    }) : []
+  };
+  o.todos.forEach(function(t){
+    if(!t || typeof t !== 'object' || typeof t.content !== 'string') return;
+    var rec = (t.recurring === 'daily' || t.recurring === 'interval' || t.recurring === 'someday')
+      ? t.recurring : null;
+    out.todos.push({
+      id: t.id || uid(),
+      content: t.content,
+      createdAt: typeof t.createdAt === 'number' ? t.createdAt : Date.now(),
+      dueAt: typeof t.dueAt === 'number' ? t.dueAt : null,
+      remindAt: typeof t.remindAt === 'number' ? t.remindAt : null,
+      done: !!t.done,
+      doneAt: typeof t.doneAt === 'number' ? t.doneAt : null,
+      important: !!t.important,
+      urgent: !!t.urgent,
+      deleted: !!t.deleted,
+      recurring: rec,
+      intervalDays: typeof t.intervalDays === 'number' ? t.intervalDays : null,
+      lastResetAt: typeof t.lastResetAt === 'number' ? t.lastResetAt : null,
+      doneCount: typeof t.doneCount === 'number' ? t.doneCount : null,
+      lastDoneDay: typeof t.lastDoneDay === 'number' ? t.lastDoneDay : null
+    });
+  });
+  return out;
+}
+
+/* 下载文本为文件 */
+function download(filename, text, mime){
+  var blob = new Blob([text], { type: mime || 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
 /* ============ 事件日志 ============ */
@@ -368,20 +511,39 @@ function logEvent(type, t){
   db.log.push({ at: Date.now(), type: type, id: t.id, q: rec ? null : quadOf(t), recur: rec });
   if(db.log.length > LOG_MAX) db.log = db.log.slice(-Math.round(LOG_MAX * 0.8));
 }
-/* 从旧数据补一份初始日志（只做一次） */
+/* 数据升级（每次启动都跑，幂等） */
 function migrate(){
-  if(db.version >= 2 && Array.isArray(db.log) && db.log.length) return;
-  if(db.version >= 2 && Array.isArray(db.log)) { db.version = 2; return; }
+  var changed = false;
   db.log = db.log || [];
+
+  /* 1) v1 -> v2：从现有待办补一份初始日志 */
+  if(db.version < 2){
+    db.todos.forEach(function(t){
+      var rec = (t.recurring && t.recurring !== 'none') ? t.recurring : null;
+      var q = rec ? null : quadOf(t);
+      if(t.createdAt) db.log.push({ at:t.createdAt, type:'create', id:t.id, q:q, recur:rec });
+      if(t.done && t.doneAt) db.log.push({ at:t.doneAt, type:'done', id:t.id, q:q, recur:rec });
+    });
+    db.log.sort(function(a,b){ return a.at - b.at; });
+    db.version = 2;
+    changed = true;
+  }
+
+  /* 2) 补 doneCount：完成次数必须独立于日志存在，
+        否则日志被裁剪时会永久拉低历史完成率 */
   db.todos.forEach(function(t){
-    var rec = (t.recurring && t.recurring !== 'none') ? t.recurring : null;
-    var q = rec ? null : quadOf(t);
-    if(t.createdAt) db.log.push({ at:t.createdAt, type:'create', id:t.id, q:q, recur:rec });
-    if(t.done && t.doneAt) db.log.push({ at:t.doneAt, type:'done', id:t.id, q:q, recur:rec });
+    if(t.doneCount != null) return;
+    var days = {};
+    db.log.forEach(function(e){
+      if(e.id === t.id && e.type === 'done') days[dayStart(e.at)] = 1;
+    });
+    var keys = Object.keys(days).map(Number).sort(function(a,b){ return b - a; });
+    t.doneCount = keys.length;
+    t.lastDoneDay = keys.length ? keys[0] : null;
+    changed = true;
   });
-  db.log.sort(function(a,b){ return a.at - b.at; });
-  db.version = 2;
-  save();
+
+  if(changed) save();
 }
 
 /* ============ 工具 ============ */
@@ -406,7 +568,13 @@ function esc(s){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   });
 }
-function dayStart(ts){ var d=new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+/* 「一天」的分界线是凌晨 4 点，不是 0 点。
+   也就是说凌晨 4 点之前算前一天 —— 熬夜到 2 点打卡，仍算作当天完成。 */
+function dayStart(ts){
+  var d = new Date(ts - DAY_OFFSET);
+  d.setHours(0,0,0,0);
+  return d.getTime() + DAY_OFFSET;
+}
 function pct(a,b){ return b ? Math.round(a/b*100) : 0; }
 function fmtDur(h){
   if(h < 1) return Math.round(h*60) + ' 分钟';
@@ -428,10 +596,11 @@ function settle(){
     var due = false;
 
     if(t.recurring === 'daily'){
-      due = today > dayStart(anchor);
+      due = today > dayStart(anchor);          // 跨过凌晨 4 点即刷新
     }else if(t.recurring === 'interval'){
       var n = Math.max(1, parseInt(t.intervalDays, 10) || 1);
-      due = (now - anchor) >= n * DAY;
+      var passed = Math.round((today - dayStart(anchor)) / DAY);   // 按「天」计，同样以 4 点为界
+      due = passed >= n;
     }
     if(!due) return;
 
@@ -456,9 +625,11 @@ function nextResetText(t){
   if(!t.done || !isRecur(t) || t.recurring === 'someday') return null;
   var now = Date.now(), next;
   if(t.recurring === 'daily'){
-    next = dayStart(now) + DAY;
+    next = dayStart(now) + DAY;              // 下一个凌晨 4 点
   }else{
-    next = (t.lastResetAt || now) + Math.max(1, parseInt(t.intervalDays,10)||1) * DAY;
+    var n = Math.max(1, parseInt(t.intervalDays,10)||1);
+    next = dayStart(t.lastResetAt || now) + n * DAY;
+    while(next <= now) next += n * DAY;      // 兜底：万一结算还没跑
   }
   var diff = next - now;
   if(diff <= 0) return '即将刷新';
@@ -519,7 +690,7 @@ function renderGrid(){
           +       ' <span class="q-count">'+(list.length||'')+'</span></span>'
           +     '<button class="q-add" data-act="add" data-q="'+q+'" aria-label="新建">＋</button>'
           +   '</div>'
-          +   '<div class="q-list">'+body+'</div>'
+          +   '<div class="q-list" id="ql'+q+'">'+body+'</div>'
           +   foot
           + '</div>';
   }
@@ -573,28 +744,54 @@ function renderRecur(){
    数据统计
    ============================================================ */
 
+/* 按「条目 + 逻辑天」去重后的完成记录。
+   勾了又取消再勾，只应算一次完成 —— 否则统计会被手滑放大。 */
+function doneSet(events){
+  var seen = {}, out = [];
+  events.forEach(function(e){
+    if(e.type !== 'done') return;
+    var day = dayStart(e.at);
+    var key = e.id + '@' + day;
+    if(seen[key]) return;
+    seen[key] = 1;
+    out.push({ id:e.id, day:day, q:e.q, recur:e.recur, at:e.at });
+  });
+  return out;
+}
+
 /* 按天分桶：每天的 新增 / 完成 / 完成象限构成 */
 function dailyBuckets(days){
   var today = dayStart(Date.now());
   var out = [], idx = {};
   for(var i = days-1; i >= 0; i--){
     var start = today - i*DAY;
-    var b = { start:start, created:0, done:0, undone:0, doneQ:[0,0,0,0], createdQ:[0,0,0,0] };
+    var b = { start:start, created:0, done:0, doneQ:[0,0,0,0], createdQ:[0,0,0,0] };
     out.push(b);
     idx[start] = b;
   }
-  (db.log||[]).forEach(function(e){
-    if(e.recur) return;                       // 习惯事件走 habitBuckets，不进象限统计
+  var ev = (db.log||[]).filter(function(e){ return !e.recur; });
+
+  // 新建：按事件计 —— 同一天建两条是两件事
+  ev.forEach(function(e){
+    if(e.type !== 'create') return;
     var b = idx[dayStart(e.at)];
     if(!b) return;
-    if(e.type === 'create'){ b.created++; if(e.q!=null) b.createdQ[e.q]++; }
-    else if(e.type === 'done'){ b.done++; if(e.q!=null) b.doneQ[e.q]++; }
-    else if(e.type === 'undone'){ b.undone++; }
+    b.created++;
+    if(e.q != null) b.createdQ[e.q]++;
   });
+
+  // 完成：按「条目 + 天」去重 —— 勾了又取消再勾只算一次
+  doneSet(ev).forEach(function(d){
+    var b = idx[d.day];
+    if(!b) return;
+    b.done++;
+    if(d.q != null) b.doneQ[d.q]++;
+  });
+
   return out;
 }
 
-/* 习惯（周期待办）按天分桶：每天完成了几次 */
+/* 习惯（周期待办）按天分桶：每天完成了几个「不同的」习惯 */
 function habitBuckets(days){
   var today = dayStart(Date.now());
   var out = [], idx = {};
@@ -603,9 +800,9 @@ function habitBuckets(days){
     var b = { start:start, done:0 };
     out.push(b); idx[start] = b;
   }
-  (db.log||[]).forEach(function(e){
-    if(e.type !== 'done' || !e.recur) return;
-    var b = idx[dayStart(e.at)];
+  // doneSet 已按「条目 + 天」去重，所以每天计数天然等于「当天完成的习惯个数」
+  doneSet((db.log||[]).filter(function(e){ return !!e.recur; })).forEach(function(d){
+    var b = idx[d.day];
     if(b) b.done++;
   });
   return out;
@@ -664,19 +861,29 @@ function habitStats(days, today, now){
 
   /* 逐条：应完成 / 实际完成 / 连击 */
   h.items = habits.map(function(t){
-    var span = Math.max(DAY, now - (t.createdAt || now));
+    // 按「逻辑天」计（凌晨 4 点为界），与刷新口径保持一致
+    var spanDays = Math.max(0, Math.round((today - dayStart(t.createdAt || now)) / DAY));
+    var n = Math.max(1, parseInt(t.intervalDays, 10) || 1);
+    // 日度：存在几天就该做几次；周期：还没到第一个周期时记 0，不算欠账
     var expect = t.recurring === 'daily'
-      ? Math.max(1, Math.round(span / DAY))
-      : Math.max(1, Math.round(span / (Math.max(1, parseInt(t.intervalDays,10) || 1) * DAY)));
-    var did = (db.log||[]).filter(function(e){
-      return e.id === t.id && e.type === 'done';
-    }).length;
+      ? Math.max(1, spanDays + 1)
+      : Math.floor(spanDays / n);
+    // 完成次数取自待办自身的计数器，不受日志裁剪影响
+    var did = (t.doneCount != null)
+      ? t.doneCount
+      : doneSet((db.log||[]).filter(function(e){ return e.id === t.id; })).length;
     var st = streaks(t.id, doneByDay);
     return {
       content:t.content, recurring:t.recurring, intervalDays:t.intervalDays,
-      expect:expect, did:did, rate:Math.min(1, did/expect), cur:st.cur, best:st.best
+      expect:expect, did:did,
+      rate: expect ? Math.min(1, did / expect) : null,
+      cur:st.cur, best:st.best
     };
-  }).sort(function(a,b){ return a.rate - b.rate; });
+  }).sort(function(a,b){
+    if(a.rate === null) return 1;        // 还没到期的排最后
+    if(b.rate === null) return -1;
+    return a.rate - b.rate;
+  });
 
   /* 窗口内「所有日度待办都完成」的最长连续天数 */
   h.streakAll = 0;
@@ -706,8 +913,6 @@ function computeStats(days){
   var pendingTodo = todos.filter(function(t){ return !isRecur(t) && !t.done; });
   var doneTodo    = todos.filter(function(t){ return !isRecur(t) &&  t.done; });
   s.quadTotal  = pendingTodo.length;
-  s.pendingAll = todos.filter(function(t){ return !t.done; }).length;
-  s.doneAll    = todos.filter(function(t){ return  t.done; }).length;
 
   s.overdue = pendingTodo.filter(function(t){ return t.dueAt && dayStart(t.dueAt) < today; }).length;
   s.overdueRate = pct(s.overdue, s.quadTotal);
@@ -719,7 +924,8 @@ function computeStats(days){
   var evAll = (db.log||[]).filter(function(e){ return e.at >= from; });
   var ev    = evAll.filter(function(e){ return !e.recur; });
   s.created = ev.filter(function(e){ return e.type==='create'; }).length;
-  s.completed = ev.filter(function(e){ return e.type==='done'; }).length;
+  var doneEv = doneSet(ev);                    // 已按「条目 + 天」去重
+  s.completed = doneEv.length;
   s.net = s.created - s.completed;
   s.ratio = s.created ? Math.round(s.completed / s.created * 100) : (s.completed ? 999 : 0);
 
@@ -731,13 +937,10 @@ function computeStats(days){
     var tot = b.done;
     return { start:b.start, value: tot ? b.doneQ[2]/tot : null, total:tot };
   });
-  var doneWithQ = ev.filter(function(e){ return e.type==='done'; });
-  var qeCount = doneWithQ.filter(function(e){ return e.q === 2; }).length;
-  s.qeShare = pct(qeCount, doneWithQ.length);
-
   /* 窗口内完成数的象限构成 */
   s.doneQ = [0,0,0,0];
-  doneWithQ.forEach(function(e){ if(e.q!=null) s.doneQ[e.q]++; });
+  doneEv.forEach(function(d){ if(d.q!=null) s.doneQ[d.q]++; });
+  s.qeShare = pct(s.doneQ[2], doneEv.length);
 
   /* --- 平均完成周期（按象限，只看非重复待办） --- */
   s.durByQuad = [null,null,null,null];
@@ -755,7 +958,7 @@ function computeStats(days){
 
   /* --- 完成时段分布 --- */
   s.hours = new Array(24).fill(0);
-  doneWithQ.forEach(function(e){ s.hours[new Date(e.at).getHours()]++; });
+  doneEv.forEach(function(d){ s.hours[new Date(d.at).getHours()]++; });
   var bestHour = 0;
   s.hours.forEach(function(v,i){ if(v > s.hours[bestHour]) bestHour = i; });
   s.bestHour = s.hours[bestHour] ? bestHour : null;
@@ -834,20 +1037,6 @@ function lineChart(series, w, h, color){
   }
   return '<svg viewBox="0 0 '+w+' '+h+'" class="chart" preserveAspectRatio="none">'+fill
        + '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
-}
-function barsChart(buckets, w, h, colors){
-  var max = 1;
-  buckets.forEach(function(b, i){ if(b > max) max = b; });
-  var n = buckets.length;
-  var gap = n > 45 ? 1 : (n > 20 ? 1.5 : 3);
-  var bw = (w - (n-1)*gap) / n;
-  var parts = [];
-  buckets.forEach(function(v, i){
-    if(!v) return;
-    var bh = (v/max) * h;
-    parts.push('<rect x="'+(i*(bw+gap)).toFixed(1)+'" y="'+(h-bh).toFixed(1)+'" width="'+Math.max(0.6,bw).toFixed(1)+'" height="'+bh.toFixed(1)+'" fill="'+(colors||'var(--accent)')+'" rx="1"/>');
-  });
-  return '<svg viewBox="0 0 '+w+' '+h+'" class="chart" preserveAspectRatio="none">'+parts.join('')+'</svg>';
 }
 function axisLabels(buckets, w){
   var n = buckets.length;
@@ -1027,14 +1216,18 @@ function cardRecur(s){
          + '<div class="empty-stat">还没有日度或周期待办。<br>新建后这里会统计你有没有坚持住。</div></div>';
   }
   var rows = h.items.map(function(r){
-    var p = Math.round(r.rate * 100);
-    var col = p >= 80 ? QCOLORS[2] : p >= 50 ? QCOLORS[1] : QCOLORS[0];
+    var notDue = (r.rate === null);            // 周期项还没到第一个周期
+    var p = notDue ? 0 : Math.round(r.rate * 100);
+    var col = notDue ? QCOLORS[3] : (p >= 80 ? QCOLORS[2] : p >= 50 ? QCOLORS[1] : QCOLORS[0]);
     var detail = r.recurring === 'daily'
       ? '每天 · 当前连续 <b>'+r.cur+'</b> 天 · 最长 <b>'+r.best+'</b> 天'
       : '每 ' + r.intervalDays + ' 天';
+    var right = notDue
+      ? '还没到期 · 已完成 ' + r.did + ' 次'
+      : (r.did + ' / ' + r.expect + ' 次 · ' + p + '%');
     return '<div class="rstab">'
          +  '<div class="top"><span class="nm">'+esc(r.content)+'</span>'
-         +  '<span class="pct">'+r.did+' / '+r.expect+' 次 · '+p+'%</span></div>'
+         +  '<span class="pct">'+right+'</span></div>'
          +  '<span class="track" style="display:block;height:13px;background:var(--bg);border-radius:7px;overflow:hidden">'
          +  '<span class="fill" style="display:block;height:100%;width:'+p+'%;background:'+col+';border-radius:7px"></span></span>'
          +  '<div class="hint" style="margin-top:5px">'+detail+'</div>'
@@ -1064,12 +1257,53 @@ function renderStats(){
   });
 }
 
+/* 记下滚动位置：整块重绘会把它清空，勾选一条后列表会跳回顶部 */
+var SCROLL_IDS = ['ql0','ql1','ql2','ql3','quadBody','recurScroll','statsBody'];
+function captureScroll(){
+  var o = {};
+  SCROLL_IDS.forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) o[id] = el.scrollTop;
+  });
+  return o;
+}
+function restoreScroll(o){
+  SCROLL_IDS.forEach(function(id){
+    var el = document.getElementById(id);
+    if(el && o[id]) el.scrollTop = o[id];
+  });
+}
+
+/* 底部提示条，可带一个「撤销」动作 */
+var toastTimer = null;
+function showToast(msg, actionLabel, onAction){
+  document.getElementById('toastMsg').textContent = msg;
+  var btn = document.getElementById('toastAct');
+  if(actionLabel){
+    btn.textContent = actionLabel;
+    btn.classList.remove('hidden');
+    btn.onclick = function(){ hideToast(); if(onAction) onAction(); };
+  }else{
+    btn.classList.add('hidden');
+    btn.onclick = null;
+  }
+  document.getElementById('toast').classList.remove('hidden');
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 6000);
+}
+function hideToast(){
+  document.getElementById('toast').classList.add('hidden');
+  if(toastTimer){ clearTimeout(toastTimer); toastTimer = null; }
+}
+
 /* ============ 渲染：总入口 ============ */
 function render(){
+  var sc = captureScroll();
   if(ui.tab === 'home') renderGrid();
   if(ui.tab === 'recur') renderRecur();
   if(ui.tab === 'stats') renderStats();
   if(ui.quad !== null) renderQuad();
+  restoreScroll(sc);
 }
 
 /* ============ 编辑器 ============ */
@@ -1190,6 +1424,13 @@ function toggleDone(id){
   if(!t) return;
   t.done = !t.done;
   t.doneAt = t.done ? Date.now() : null;
+  if(t.done){
+    var day = dayStart(Date.now());
+    if(t.lastDoneDay !== day){          // 同一天反复勾选只计一次
+      t.doneCount = (t.doneCount || 0) + 1;
+      t.lastDoneDay = day;
+    }
+  }
   logEvent(t.done ? 'done' : 'undone', t);
   save(); render();
 }
@@ -1242,13 +1483,13 @@ document.addEventListener('click', function(ev){
 
 function switchTab(tab){
   ui.tab = tab;
+  settle();                      // 先结算：跨过凌晨 4 点后切页也能看到正确状态
   ['home','recur','stats'].forEach(function(t){
     document.getElementById('page-'+t).classList.toggle('hidden', t !== tab);
   });
   document.querySelectorAll('#tabbar button').forEach(function(b){
     b.classList.toggle('on', b.getAttribute('data-tab') === tab);
   });
-  document.getElementById('btnMenu').classList.toggle('hidden', tab !== 'home');
   document.getElementById('btnRecurAdd').classList.toggle('hidden', tab !== 'recur');
   document.getElementById('pageTitle').textContent =
     tab === 'home' ? '佳木的待办助手' : tab === 'recur' ? '周期待办' : '数据统计';
@@ -1270,10 +1511,16 @@ document.getElementById('btnCancel').addEventListener('click', closeEditor);
 document.getElementById('btnSave').addEventListener('click', saveEditor);
 document.getElementById('btnDelete').addEventListener('click', function(){
   if(!editingId) return;
-  if(!confirm('确定删除这条待办？')) return;
   var t = findTodo(editingId);
-  if(t){ t.deleted = true; logEvent('delete', t); }
+  if(!t) return;
+  t.deleted = true;
+  logEvent('delete', t);
   save(); closeEditor(); render();
+  // 不再用 confirm 拦一道，改成可撤销 —— 误删一键就能回来
+  showToast('已删除「'+t.content+'」', '撤销', function(){
+    t.deleted = false;
+    save(); render();
+  });
 });
 document.getElementById('maskEdit').addEventListener('click', function(ev){
   if(ev.target === this) closeEditor();
@@ -1290,13 +1537,8 @@ document.getElementById('btnMenu').addEventListener('click', function(){
   document.getElementById('screenMenu').classList.remove('hidden');
 });
 document.getElementById('btnExport').addEventListener('click', function(){
-  var blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = '佳木待办-备份-'+toDateInput(Date.now())+'.json';
-  document.body.appendChild(a); a.click();
-  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
-  alert('已导出。请把文件保存到网盘或发给自己。');
+  download('佳木待办-备份-'+toDateInput(Date.now())+'.json', JSON.stringify(db, null, 2));
+  showToast('已导出，请把文件存到网盘或发给自己');
 });
 document.getElementById('btnImport').addEventListener('click', function(){
   document.getElementById('fileImport').click();
@@ -1307,11 +1549,9 @@ document.getElementById('fileImport').addEventListener('change', function(ev){
   var r = new FileReader();
   r.onload = function(){
     try{
-      var o = JSON.parse(r.result);
-      if(!o || !Array.isArray(o.todos)) throw new Error('格式不对');
+      var o = normalizeImport(JSON.parse(r.result));
       if(!confirm('导入将覆盖当前 '+active().length+' 条待办，继续？')) return;
       db = o;
-      if(!db.log) db.log = [];
       save(); migrate(); settle(); render();
       alert('导入成功，共 '+active().length+' 条待办。');
       document.getElementById('screenMenu').classList.add('hidden');
@@ -1329,18 +1569,61 @@ document.getElementById('btnCopy').addEventListener('click', function(){
     prompt('复制下面的内容保存：', txt);
   }
 });
+/* 自动快照：手动触发一次留档（清空、恢复之前用） */
+function pushSnapshot(){
+  try{
+    var l = readSnapshots();
+    l.push({ at: Date.now(), todos: db.todos, log: db.log });
+    if(l.length > SNAP_MAX) l = l.slice(-SNAP_MAX);
+    localStorage.setItem(SNAP_KEY, JSON.stringify(l));
+  }catch(e){}
+}
+document.getElementById('btnSnapshots').addEventListener('click', function(){
+  var list = readSnapshots();
+  var box  = document.getElementById('snapBox');
+  if(!list.length){
+    document.getElementById('snapList').innerHTML =
+      '<div class="empty-stat">还没有快照。<br>每天第一次打开应用会自动留一份，最多保留 3 份。</div>';
+  }else{
+    document.getElementById('snapList').innerHTML = list.map(function(s, i){
+      var d = new Date(s.at);
+      var n = (s.todos || []).filter(function(t){ return !t.deleted; }).length;
+      return '<div class="snap">'
+           + '<div class="t">' + d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate()
+           +   ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + '</div>'
+           + '<div class="d">' + n + ' 条待办 · ' + ((s.log || []).length) + ' 条历史记录</div>'
+           + '<button data-snap="' + i + '">恢复这一份</button></div>';
+    }).reverse().join('');
+  }
+  box.classList.toggle('hidden');
+});
+document.getElementById('snapBox').addEventListener('click', function(ev){
+  var b = ev.target.closest('[data-snap]');
+  if(!b) return;
+  var s = readSnapshots()[parseInt(b.getAttribute('data-snap'), 10)];
+  if(!s) return;
+  if(!confirm('将把数据恢复到这份快照的状态。当前数据会先自动存一份，可以再恢复回来。继续？')) return;
+  pushSnapshot();                       // 留一颗后悔药
+  db = normalizeImport({ version:2, todos: s.todos || [], log: s.log || [] });
+  save(); migrate(); settle(); render();
+  document.getElementById('screenMenu').classList.add('hidden');
+  var d = new Date(s.at);
+  showToast('已恢复到 ' + (d.getMonth()+1) + '/' + d.getDate() + ' 的快照');
+});
 document.getElementById('btnClear').addEventListener('click', function(){
-  if(!confirm('将删除全部待办和统计数据，且无法撤销。确定？')) return;
-  if(!confirm('真的确定吗？建议先导出备份。')) return;
+  if(!confirm('将删除全部待办和统计数据。确定？')) return;
+  pushSnapshot();                       // 清空前留一份
   db = { version:2, todos:[], log:[] };
   save(); render();
   document.getElementById('screenMenu').classList.add('hidden');
+  showToast('已清空（清空前存了快照，可从「从自动快照恢复」找回）');
 });
 
 /* ============ 启动 ============ */
 load();
 migrate();
 settle();
+snapshot();               // 每天首次打开留一份快照
 render();
 switchTab('home');
 

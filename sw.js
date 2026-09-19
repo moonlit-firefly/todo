@@ -1,7 +1,7 @@
 // Service Worker：把应用外壳缓存到本地，实现「断网也能打开、打开即秒开」。
 // 策略为「缓存优先 + 后台静默更新」：本地应用没有服务端数据，缓存里就是最新版。
 // 以后升级应用时，把 VERSION 的编号加一即可让旧缓存自动失效。
-const VERSION = 'todo-v5';
+const VERSION = 'todo-v7';
 const ASSETS = [
   './',
   './index.html',
