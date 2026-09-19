@@ -1,6 +1,6 @@
 {
-  "name": "待办 · 四象限",
-  "short_name": "待办",
+  "name": "佳木的待办助手",
+  "short_name": "佳木待办",
   "description": "四象限待办清单：重要/紧急自动归位，数据只保存在本机。",
   "lang": "zh-CN",
   "start_url": "./",

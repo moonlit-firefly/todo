@@ -6,10 +6,10 @@
 <meta name="theme-color" content="#f2f2f7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="待办">
+<meta name="apple-mobile-web-app-title" content="佳木待办">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
-<title>待办</title>
+<title>佳木的待办助手</title>
 <style>
 :root{
   --bg:#f2f2f7; --card:#fff; --text:#1c1c1e; --muted:#8e8e93; --line:#e4e4e9;
@@ -171,7 +171,7 @@ input,textarea{font:inherit;color:var(--text)}
 <body>
 
 <div class="topbar">
-  <h1 id="pageTitle">待办</h1>
+  <h1 id="pageTitle">佳木的待办助手</h1>
   <button class="iconbtn hidden" id="btnRecurAdd" aria-label="新建周期待办">＋</button>
   <button class="iconbtn" id="btnMenu" aria-label="数据管理">⋯</button>
 </div>
@@ -1251,7 +1251,7 @@ function switchTab(tab){
   document.getElementById('btnMenu').classList.toggle('hidden', tab !== 'home');
   document.getElementById('btnRecurAdd').classList.toggle('hidden', tab !== 'recur');
   document.getElementById('pageTitle').textContent =
-    tab === 'home' ? '待办' : tab === 'recur' ? '周期待办' : '数据统计';
+    tab === 'home' ? '佳木的待办助手' : tab === 'recur' ? '周期待办' : '数据统计';
   if(tab === 'recur') renderRecur();
   if(tab === 'stats') renderStats();
 }
@@ -1293,7 +1293,7 @@ document.getElementById('btnExport').addEventListener('click', function(){
   var blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = '待办备份-'+toDateInput(Date.now())+'.json';
+  a.download = '佳木待办-备份-'+toDateInput(Date.now())+'.json';
   document.body.appendChild(a); a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   alert('已导出。请把文件保存到网盘或发给自己。');
