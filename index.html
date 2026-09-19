@@ -84,6 +84,39 @@ input,textarea{font:inherit;color:var(--text)}
 .r-empty .big{font-size:32px;margin-bottom:10px}
 .r-empty b{color:var(--text);font-weight:600}
 
+/* ---------- 数据统计 ---------- */
+.tiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:0 14px 12px}
+.tile{background:var(--card);border-radius:var(--r);padding:11px 10px;text-align:center}
+.tile .v{font-size:21px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+.tile .k{font-size:11px;color:var(--muted);margin-top:3px}
+.tile.warn .v{color:var(--danger)}
+.card{background:var(--card);border-radius:var(--r);margin:0 14px 12px;padding:14px}
+.card h3{margin:0 0 12px;font-size:14.5px;font-weight:650;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.card h3 .sub{font-size:11.5px;color:var(--muted);font-weight:400}
+.chart{width:100%;height:auto;display:block}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:10px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.hbar{display:flex;align-items:center;gap:8px;margin-bottom:9px;font-size:12.5px}
+.hbar:last-child{margin-bottom:0}
+.hbar .lb{width:78px;flex:none;color:var(--muted);font-size:11.5px}
+.hbar .track{flex:1;height:15px;background:var(--bg);border-radius:8px;overflow:hidden}
+.hbar .fill{height:100%;border-radius:8px}
+.hbar .num{width:62px;flex:none;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--muted)}
+.hours{display:flex;align-items:flex-end;gap:2px;height:66px}
+.hours div{flex:1;background:var(--accent);border-radius:2px 2px 0 0;opacity:.85}
+.axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-top:5px}
+.rstab{font-size:12.5px;margin-bottom:13px}
+.rstab:last-child{margin-bottom:0}
+.rstab .top{display:flex;justify-content:space-between;gap:10px;margin-bottom:5px}
+.rstab .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rstab .pct{color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.empty-stat{color:var(--muted);font-size:12.5px;text-align:center;padding:18px 0;line-height:1.8}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:10px}
+.sec-title{font-size:12.5px;font-weight:700;color:var(--muted);margin:20px 14px 10px;letter-spacing:.6px}
+.sec-title:first-child{margin-top:4px}
+.heat{display:grid;grid-template-columns:repeat(auto-fill,minmax(11px,1fr));gap:3px}
+.hcell{aspect-ratio:1;border-radius:3px;display:block}
+
 /* ---------- 底部标签栏 ---------- */
 .tabbar{display:flex;flex:none;border-top:1px solid var(--line);background:var(--card);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tabbar button{flex:1;padding:9px 0 10px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -125,17 +158,12 @@ input,textarea{font:inherit;color:var(--text)}
 .btn.danger{background:transparent;color:var(--danger)}
 .btn:active{opacity:.75}
 
-/* ---------- 菜单 / 占位 ---------- */
+/* ---------- 菜单 ---------- */
 .menu-list{background:var(--card);border-radius:var(--r);overflow:hidden;margin:0 14px}
 .menu-list button{display:block;width:100%;text-align:left;padding:15px 16px;font-size:15.5px;border-bottom:1px solid var(--line)}
 .menu-list button:last-child{border-bottom:0}
 .menu-list button.danger{color:var(--danger)}
 .menu-list button:active{background:var(--line)}
-.holder{padding:60px 30px;text-align:center;color:var(--muted)}
-.holder .big{font-size:34px;margin-bottom:14px}
-.holder h3{color:var(--text);font-size:16px;margin:0 0 10px}
-.holder p{font-size:13.5px;line-height:1.7;margin:0 0 8px}
-.holder ul{text-align:left;font-size:13px;line-height:1.9;padding-left:20px;margin:14px 0 0;display:inline-block}
 .warnbar{background:#ff950022;color:#c86a00;font-size:12.5px;padding:9px 14px;text-align:center}
 @media (prefers-color-scheme:dark){.warnbar{color:#ffb340}}
 </style>
@@ -172,22 +200,14 @@ input,textarea{font:inherit;color:var(--text)}
   </div>
 </div>
 
-<!-- ========== 数据统计（占位） ========== -->
+<!-- ========== 数据统计 ========== -->
 <div class="page hidden" id="page-stats">
-  <div class="holder">
-    <div class="big">📊</div>
-    <h3>数据统计</h3>
-    <p>下一阶段实现。规划中的指标：</p>
-    <ul>
-      <li>四象限分布</li>
-      <li><b>重要不紧急占比趋势</b>（最能反映规划能力）</li>
-      <li>日 / 周 / 月完成率</li>
-      <li>逾期率</li>
-      <li>平均完成周期（按象限）</li>
-      <li>新增 vs 完成 的净流入</li>
-      <li>完成时段分布</li>
-    </ul>
+  <div class="seg" id="segRange">
+    <button data-days="7" class="on">近 7 天</button>
+    <button data-days="30">近 30 天</button>
+    <button data-days="90">近 90 天</button>
   </div>
+  <div class="scrollarea" id="statsBody"></div>
 </div>
 
 <!-- ========== 数据管理菜单 ========== -->
@@ -288,18 +308,20 @@ input,textarea{font:inherit;color:var(--text)}
 'use strict';
 
 /* ============ 常量 ============ */
-var KEY = 'dsh.todo.v1';
+var KEY = 'dsh.todo.v2';
+var OLD_KEY = 'dsh.todo.v1';
 var SHOW_MAX = 3;
 var DAY = 86400000;
+var QCOLORS = ['#ff3b30','#ff9500','#34c759','#a1a1a6'];
+var LOG_MAX = 6000;
 
-// 布局顺序：左上、右上、左下、右下
-// 横轴 重要(左) / 不重要(右)；纵轴 紧急(上) / 不紧急(下)
 var QUADS = [
   {name:'重要且紧急',   dot:'var(--q0)', imp:true,  urg:true },
   {name:'不重要但紧急', dot:'var(--q1)', imp:false, urg:true },
   {name:'重要不紧急',   dot:'var(--q2)', imp:true,  urg:false},
   {name:'不重要不紧急', dot:'var(--q3)', imp:false, urg:false}
 ];
+var SHORT_Q = ['重要紧急','不重要紧急','重要不紧急','不重要不紧急'];
 
 var RTYPES = {
   daily:   {label:'日度待办', empty:'还没有日度待办', tip:'每天 0 点后自动刷新为未完成。<br>比如「每天喝水 2L」「每天读 30 分钟」'},
@@ -308,8 +330,8 @@ var RTYPES = {
 };
 
 /* ============ 状态 ============ */
-var db = { version:1, todos:[] };
-var ui = { tab:'home', sub:'pending', quad:null, rtype:'daily' };
+var db = { version:2, todos:[], log:[] };
+var ui = { tab:'home', sub:'pending', quad:null, rtype:'daily', days:7 };
 var storageOK = true;
 var editingId = null;
 var draft = { imp:true, urg:true, recur:'none', intervalDays:3 };
@@ -318,11 +340,13 @@ var draft = { imp:true, urg:true, recur:'none', intervalDays:3 };
 function load(){
   try{
     var raw = localStorage.getItem(KEY);
+    if(!raw) raw = localStorage.getItem(OLD_KEY);   // 兼容上一版数据
     if(raw){
       var o = JSON.parse(raw);
       if(o && Array.isArray(o.todos)) db = o;
     }
   }catch(e){ storageOK = false; }
+  if(!db.log) db.log = [];
   if(!storageOK){
     try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); storageOK = true; }
     catch(e){ storageOK = false; }
@@ -332,6 +356,32 @@ function load(){
 function save(){
   if(!storageOK) return;
   try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){}
+}
+
+/* ============ 事件日志 ============ */
+/* 只追加、不修改。周期待办刷新时会清空 doneAt，
+   没有这份日志就无法做任何时间维度的统计。 */
+function logEvent(type, t){
+  if(!db.log) db.log = [];
+  var rec = (t.recurring && t.recurring !== 'none') ? t.recurring : null;
+  // 周期待办不属于四象限，q 记 null，避免污染象限统计
+  db.log.push({ at: Date.now(), type: type, id: t.id, q: rec ? null : quadOf(t), recur: rec });
+  if(db.log.length > LOG_MAX) db.log = db.log.slice(-Math.round(LOG_MAX * 0.8));
+}
+/* 从旧数据补一份初始日志（只做一次） */
+function migrate(){
+  if(db.version >= 2 && Array.isArray(db.log) && db.log.length) return;
+  if(db.version >= 2 && Array.isArray(db.log)) { db.version = 2; return; }
+  db.log = db.log || [];
+  db.todos.forEach(function(t){
+    var rec = (t.recurring && t.recurring !== 'none') ? t.recurring : null;
+    var q = rec ? null : quadOf(t);
+    if(t.createdAt) db.log.push({ at:t.createdAt, type:'create', id:t.id, q:q, recur:rec });
+    if(t.done && t.doneAt) db.log.push({ at:t.doneAt, type:'done', id:t.id, q:q, recur:rec });
+  });
+  db.log.sort(function(a,b){ return a.at - b.at; });
+  db.version = 2;
+  save();
 }
 
 /* ============ 工具 ============ */
@@ -357,10 +407,15 @@ function esc(s){
   });
 }
 function dayStart(ts){ var d=new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+function pct(a,b){ return b ? Math.round(a/b*100) : 0; }
+function fmtDur(h){
+  if(h < 1) return Math.round(h*60) + ' 分钟';
+  if(h < 48) return (Math.round(h*10)/10) + ' 小时';
+  return (Math.round(h/24*10)/10) + ' 天';
+}
+function mmdd(ts){ var d=new Date(ts); return (d.getMonth()+1)+'/'+d.getDate(); }
 
 /* ============ 周期待办：惰性结算 ============ */
-/* 不依赖后台任务：每次打开、切回前台、每分钟检查一次，
-   把到期的周期待办刷新成未完成。返回是否发生了变更。 */
 function settle(){
   var now = Date.now();
   var today = dayStart(now);
@@ -380,8 +435,9 @@ function settle(){
     }
     if(!due) return;
 
-    if(t.done){ t.done = false; t.doneAt = null; changed = true; }
+    if(t.done){ t.done = false; t.doneAt = null; }
     t.lastResetAt = now;
+    logEvent('reset', t);
     changed = true;
   });
 
@@ -416,7 +472,7 @@ function dueText(t){
   var due   = dayStart(t.dueAt);
   var diff  = Math.round((due - today)/DAY);
   var label = diff===0 ? '今天' : diff===1 ? '明天' : diff===-1 ? '昨天'
-            : (due<today ? '逾期' : (new Date(t.dueAt).getMonth()+1)+'/'+new Date(t.dueAt).getDate());
+            : (due<today ? '逾期' : mmdd(t.dueAt));
   var cls = due<today ? 'over' : (diff<=1 ? 'soon' : '');
   return {label:'⏰ '+label, cls:cls};
 }
@@ -450,12 +506,9 @@ function renderGrid(){
   for(var q=0; q<4; q++){
     var list = inQuad(q, done);
     var shown = list.slice(0, SHOW_MAX);
-    var body;
-    if(list.length === 0){
-      body = '<div class="q-empty">'+(done?'还没有完成的':'暂无待办')+'</div>';
-    }else{
-      body = shown.map(itemHTML).join('');
-    }
+    var body = list.length === 0
+      ? '<div class="q-empty">'+(done?'还没有完成的':'暂无待办')+'</div>'
+      : shown.map(itemHTML).join('');
     var foot = list.length > SHOW_MAX
       ? '<div class="q-foot" data-act="open" data-q="'+q+'">查看全部 ('+list.length+')</div>'
       : '';
@@ -483,8 +536,7 @@ function renderQuad(){
     QUADS[q].name + ' · ' + (done ? '已完成' : '待完成') + ' (' + list.length + ')';
   document.getElementById('quadBody').innerHTML = list.length
     ? list.map(itemHTML).join('')
-    : '<div class="holder" style="padding:70px 30px"><div class="big">'+(done?'🎉':'📝')+'</div>'
-      + '<p>'+(done?'这个象限还没有已完成的待办':'这个象限还没有待办')+'</p></div>';
+    : '<div class="empty-stat" style="padding:70px 30px">'+(done?'这个象限还没有已完成的待办':'这个象限还没有待办')+'</div>';
 }
 
 /* ============ 渲染：周期待办 ============ */
@@ -517,10 +569,506 @@ function renderRecur(){
   });
 }
 
+/* ============================================================
+   数据统计
+   ============================================================ */
+
+/* 按天分桶：每天的 新增 / 完成 / 完成象限构成 */
+function dailyBuckets(days){
+  var today = dayStart(Date.now());
+  var out = [], idx = {};
+  for(var i = days-1; i >= 0; i--){
+    var start = today - i*DAY;
+    var b = { start:start, created:0, done:0, undone:0, doneQ:[0,0,0,0], createdQ:[0,0,0,0] };
+    out.push(b);
+    idx[start] = b;
+  }
+  (db.log||[]).forEach(function(e){
+    if(e.recur) return;                       // 习惯事件走 habitBuckets，不进象限统计
+    var b = idx[dayStart(e.at)];
+    if(!b) return;
+    if(e.type === 'create'){ b.created++; if(e.q!=null) b.createdQ[e.q]++; }
+    else if(e.type === 'done'){ b.done++; if(e.q!=null) b.doneQ[e.q]++; }
+    else if(e.type === 'undone'){ b.undone++; }
+  });
+  return out;
+}
+
+/* 习惯（周期待办）按天分桶：每天完成了几次 */
+function habitBuckets(days){
+  var today = dayStart(Date.now());
+  var out = [], idx = {};
+  for(var i = days-1; i >= 0; i--){
+    var start = today - i*DAY;
+    var b = { start:start, done:0 };
+    out.push(b); idx[start] = b;
+  }
+  (db.log||[]).forEach(function(e){
+    if(e.type !== 'done' || !e.recur) return;
+    var b = idx[dayStart(e.at)];
+    if(b) b.done++;
+  });
+  return out;
+}
+
+/* 某个习惯的「当前连续」与「历史最长连续」天数 */
+function streaks(id, doneByDay){
+  var days = [];
+  for(var k in doneByDay){ if(doneByDay[k][id]) days.push(parseInt(k,10)); }
+  days.sort(function(a,b){ return a-b; });
+  if(!days.length) return { cur:0, best:0 };
+
+  var best = 1, run = 1, i;
+  for(i = 1; i < days.length; i++){
+    if(days[i] - days[i-1] === DAY) run++; else run = 1;
+    if(run > best) best = run;
+  }
+  // 当前连续：今天还没打卡不算断（这一天还没过完）
+  var today = dayStart(Date.now());
+  var last = days[days.length-1];
+  var cur = 0;
+  if(last === today || last === today - DAY){
+    cur = 1;
+    for(i = days.length-1; i > 0; i--){
+      if(days[i] - days[i-1] === DAY) cur++; else break;
+    }
+  }
+  return { cur:cur, best:best };
+}
+
+/* 习惯维度的全部指标（与事项统计完全分开） */
+function habitStats(days, today, now){
+  var h = {};
+  var habits  = active().filter(function(t){ return isRecur(t) && t.recurring !== 'someday'; });
+  var daily   = habits.filter(function(t){ return t.recurring === 'daily'; });
+  var someday = active().filter(function(t){ return t.recurring === 'someday'; });
+
+  h.total = habits.length;
+  h.dailyCount = daily.length;
+  h.somedayCount = someday.length;
+
+  /* 今日打卡：实时状态，不是日志 */
+  h.todayTotal = habits.length;
+  h.todayDone  = habits.filter(function(t){ return t.done; }).length;
+  h.todayDailyTotal = daily.length;
+  h.todayDailyDone  = daily.filter(function(t){ return t.done; }).length;
+
+  /* 每个「天 -> 完成了哪些习惯」，用于连击 */
+  var doneByDay = {};
+  (db.log||[]).forEach(function(e){
+    if(e.type !== 'done' || !e.recur) return;
+    var d = dayStart(e.at);
+    if(!doneByDay[d]) doneByDay[d] = {};
+    doneByDay[d][e.id] = 1;
+  });
+
+  /* 逐条：应完成 / 实际完成 / 连击 */
+  h.items = habits.map(function(t){
+    var span = Math.max(DAY, now - (t.createdAt || now));
+    var expect = t.recurring === 'daily'
+      ? Math.max(1, Math.round(span / DAY))
+      : Math.max(1, Math.round(span / (Math.max(1, parseInt(t.intervalDays,10) || 1) * DAY)));
+    var did = (db.log||[]).filter(function(e){
+      return e.id === t.id && e.type === 'done';
+    }).length;
+    var st = streaks(t.id, doneByDay);
+    return {
+      content:t.content, recurring:t.recurring, intervalDays:t.intervalDays,
+      expect:expect, did:did, rate:Math.min(1, did/expect), cur:st.cur, best:st.best
+    };
+  }).sort(function(a,b){ return a.rate - b.rate; });
+
+  /* 窗口内「所有日度待办都完成」的最长连续天数 */
+  h.streakAll = 0;
+  if(daily.length){
+    var need = daily.length, run = 0;
+    for(var j = days-1; j >= 0; j--){          // 从最早的一天走到今天
+      var dd = today - j*DAY;
+      var cnt = 0;
+      daily.forEach(function(t){ if(doneByDay[dd] && doneByDay[dd][t.id]) cnt++; });
+      if(cnt >= need){ run++; if(run > h.streakAll) h.streakAll = run; }
+      else run = 0;
+    }
+  }
+  return h;
+}
+
+/* 汇总所有指标 */
+function computeStats(days){
+  var today = dayStart(Date.now());
+  var from  = today - (days-1)*DAY;
+  var now   = Date.now();
+  var todos = active();
+
+  var s = { days:days, from:from, buckets:dailyBuckets(days), habitDays:habitBuckets(days) };
+
+  /* --- 事项（四象限待办）：当前状态 --- */
+  var pendingTodo = todos.filter(function(t){ return !isRecur(t) && !t.done; });
+  var doneTodo    = todos.filter(function(t){ return !isRecur(t) &&  t.done; });
+  s.quadTotal  = pendingTodo.length;
+  s.pendingAll = todos.filter(function(t){ return !t.done; }).length;
+  s.doneAll    = todos.filter(function(t){ return  t.done; }).length;
+
+  s.overdue = pendingTodo.filter(function(t){ return t.dueAt && dayStart(t.dueAt) < today; }).length;
+  s.overdueRate = pct(s.overdue, s.quadTotal);
+
+  s.quadPending = [0,0,0,0];
+  pendingTodo.forEach(function(t){ s.quadPending[quadOf(t)]++; });
+
+  /* --- 窗口内事件：事项与习惯分开取 --- */
+  var evAll = (db.log||[]).filter(function(e){ return e.at >= from; });
+  var ev    = evAll.filter(function(e){ return !e.recur; });
+  s.created = ev.filter(function(e){ return e.type==='create'; }).length;
+  s.completed = ev.filter(function(e){ return e.type==='done'; }).length;
+  s.net = s.created - s.completed;
+  s.ratio = s.created ? Math.round(s.completed / s.created * 100) : (s.completed ? 999 : 0);
+
+  s.todayDone = 0; s.todayCreated = 0;
+  s.buckets.forEach(function(b){ if(b.start === today){ s.todayDone = b.done; s.todayCreated = b.created; } });
+
+  /* --- 重要不紧急占比趋势（按当日完成数） --- */
+  s.qeSeries = s.buckets.map(function(b){
+    var tot = b.done;
+    return { start:b.start, value: tot ? b.doneQ[2]/tot : null, total:tot };
+  });
+  var doneWithQ = ev.filter(function(e){ return e.type==='done'; });
+  var qeCount = doneWithQ.filter(function(e){ return e.q === 2; }).length;
+  s.qeShare = pct(qeCount, doneWithQ.length);
+
+  /* 窗口内完成数的象限构成 */
+  s.doneQ = [0,0,0,0];
+  doneWithQ.forEach(function(e){ if(e.q!=null) s.doneQ[e.q]++; });
+
+  /* --- 平均完成周期（按象限，只看非重复待办） --- */
+  s.durByQuad = [null,null,null,null];
+  var acc = [[],[],[],[]];
+  doneTodo.forEach(function(t){
+    if(!t.doneAt) return;
+    var base = t.createdAt || t.doneAt;
+    var h = (t.doneAt - base) / 3600000;
+    if(h < 0) return;
+    acc[quadOf(t)].push(h);
+  });
+  acc.forEach(function(a,i){
+    if(a.length) s.durByQuad[i] = { avg: a.reduce(function(x,y){return x+y;},0)/a.length, n:a.length };
+  });
+
+  /* --- 完成时段分布 --- */
+  s.hours = new Array(24).fill(0);
+  doneWithQ.forEach(function(e){ s.hours[new Date(e.at).getHours()]++; });
+  var bestHour = 0;
+  s.hours.forEach(function(v,i){ if(v > s.hours[bestHour]) bestHour = i; });
+  s.bestHour = s.hours[bestHour] ? bestHour : null;
+
+  /* --- 习惯（周期待办）：完全独立的一套指标 --- */
+  s.habit = habitStats(days, today, now);
+
+  /* --- 趋势文字 --- */
+  s.trend = trendWord(s);
+
+  return s;
+}
+
+/* 对比「前半段 vs 后半段」，给出一句话趋势判断 */
+function trendWord(s){
+  var b = s.buckets;
+  if(b.length < 4) return null;
+  var mid = Math.floor(b.length/2);
+  function sum(arr, k){ return arr.reduce(function(a,x){ return a + (k ? x[k] : x); }, 0); }
+  var fDone = sum(b.slice(0,mid), 'done'), lDone = sum(b.slice(mid), 'done');
+  var fCrt  = sum(b.slice(0,mid), 'created'), lCrt = sum(b.slice(mid), 'created');
+  var out = [];
+  if(fDone || lDone){
+    var dd = lDone - fDone;
+    out.push('完成量' + (dd > 0 ? '上升 ' : dd < 0 ? '下降 ' : '持平 ') +
+      (fDone ? Math.abs(Math.round(dd/fDone*100)) + '%' : ''));
+  }
+  if(fCrt || lCrt){
+    var dc = lCrt - fCrt;
+    out.push('新增' + (dc > 0 ? '上升 ' : dc < 0 ? '下降 ' : '持平 ') +
+      (fCrt ? Math.abs(Math.round(dc/fCrt*100)) + '%' : ''));
+  }
+  return out.length ? out.join('，') + '（前后半程对比）' : null;
+}
+
+/* ---- 图表 ---- */
+function stackedChart(buckets, key, w, h){
+  var max = 1;
+  buckets.forEach(function(b){
+    var t = key(b).reduce(function(a,c){ return a+c; }, 0);
+    if(t > max) max = t;
+  });
+  var n = buckets.length;
+  var gap = n > 45 ? 1 : (n > 20 ? 1.5 : 3);
+  var bw = (w - (n-1)*gap) / n;
+  var parts = [];
+  buckets.forEach(function(b, i){
+    var vals = key(b);
+    var x = i*(bw+gap);
+    var y = h;
+    for(var qi=0; qi<4; qi++){
+      var v = vals[qi];
+      if(!v) continue;
+      var bh = (v/max) * h;
+      y -= bh;
+      parts.push('<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+Math.max(0.6,bw).toFixed(1)+'" height="'+bh.toFixed(1)+'" fill="'+QCOLORS[qi]+'"/>');
+    }
+  });
+  return '<svg viewBox="0 0 '+w+' '+h+'" class="chart" preserveAspectRatio="none">'+parts.join('')+'</svg>';
+}
+function lineChart(series, w, h, color){
+  var pts = [], area = [];
+  var n = series.length;
+  series.forEach(function(p, i){
+    if(p.value === null) return;
+    var x = n > 1 ? i*(w/(n-1)) : w/2;
+    var y = h - Math.max(0, Math.min(1, p.value)) * h;
+    pts.push(x.toFixed(1)+','+y.toFixed(1));
+    area.push([x, y]);
+  });
+  if(!pts.length) return '';
+  var d = 'M' + pts.join(' L');
+  var fill = '';
+  if(area.length > 1){
+    fill = '<path d="M'+area[0][0].toFixed(1)+','+h+' L'+pts.join(' L')+' L'+area[area.length-1][0].toFixed(1)+','+h+' Z" fill="'+color+'" opacity="0.12"/>';
+  }
+  return '<svg viewBox="0 0 '+w+' '+h+'" class="chart" preserveAspectRatio="none">'+fill
+       + '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
+function barsChart(buckets, w, h, colors){
+  var max = 1;
+  buckets.forEach(function(b, i){ if(b > max) max = b; });
+  var n = buckets.length;
+  var gap = n > 45 ? 1 : (n > 20 ? 1.5 : 3);
+  var bw = (w - (n-1)*gap) / n;
+  var parts = [];
+  buckets.forEach(function(v, i){
+    if(!v) return;
+    var bh = (v/max) * h;
+    parts.push('<rect x="'+(i*(bw+gap)).toFixed(1)+'" y="'+(h-bh).toFixed(1)+'" width="'+Math.max(0.6,bw).toFixed(1)+'" height="'+bh.toFixed(1)+'" fill="'+(colors||'var(--accent)')+'" rx="1"/>');
+  });
+  return '<svg viewBox="0 0 '+w+' '+h+'" class="chart" preserveAspectRatio="none">'+parts.join('')+'</svg>';
+}
+function axisLabels(buckets, w){
+  var n = buckets.length;
+  if(!n) return '';
+  var marks = n <= 8 ? buckets.map(function(b){ return mmdd(b.start); })
+                     : [mmdd(buckets[0].start), mmdd(buckets[Math.floor(n/2)].start), mmdd(buckets[n-1].start)];
+  return '<div class="axis">' + marks.map(function(m){ return '<span>'+esc(m)+'</span>'; }).join('') + '</div>';
+}
+
+/* ---- 卡片 ---- */
+function cardOverview(s){
+  var ratioTxt = s.created ? (s.ratio + '%') : (s.completed ? '∞' : '—');
+  return '<div class="tiles">'
+    + '<div class="tile"><div class="v">'+s.quadTotal+'</div><div class="k">未完成事项</div></div>'
+    + '<div class="tile'+(s.overdue?' warn':'')+'"><div class="v">'+s.overdue+'</div><div class="k">已逾期</div></div>'
+    + '<div class="tile'+(s.overdueRate>0?' warn':'')+'"><div class="v">'+s.overdueRate+'%</div><div class="k">逾期率</div></div>'
+    + '<div class="tile"><div class="v">'+s.todayDone+'</div><div class="k">今日完成</div></div>'
+    + '<div class="tile"><div class="v">'+s.todayCreated+'</div><div class="k">今日新增</div></div>'
+    + '<div class="tile"><div class="v">'+ratioTxt+'</div><div class="k">完成/新增</div></div>'
+    + '</div>'
+    + '<div class="hint" style="margin:-2px 14px 0">以上只统计<b>四象限待办</b>。周期待办的指标在下方「习惯统计」。</div>';
+}
+
+function cardQuadrant(s){
+  var rows = '';
+  for(var q=0;q<4;q++){
+    var n = s.quadPending[q];
+    var p = pct(n, s.quadTotal);
+    rows += '<div class="hbar">'
+         +  '<span class="lb">'+SHORT_Q[q]+'</span>'
+         +  '<span class="track"><span class="fill" style="width:'+p+'%;background:'+QCOLORS[q]+'"></span></span>'
+         +  '<span class="num">'+n+' · '+p+'%</span>'
+         +  '</div>';
+  }
+  return '<div class="card"><h3>四象限分布<span class="sub">仅四象限待办 · '+s.quadTotal+' 条</span></h3>'
+       + rows
+       + '<div class="hint">理想状态是「重要不紧急」占多数。如果「重要且紧急」长期爆满，说明你在持续救火，缺少提前规划。</div>'
+       + '</div>';
+}
+
+function cardDoneTrend(s){
+  var w = 320, h = 90;
+  var chart = stackedChart(s.buckets, function(b){ return b.doneQ; }, w, h);
+  var any = s.buckets.some(function(b){ return b.done > 0; });
+  var body = any ? chart + axisLabels(s.buckets, w)
+    : '<div class="empty-stat">这段时间还没有完成记录</div>';
+  return '<div class="card"><h3>完成趋势<span class="sub">按象限堆叠 · 每日完成数</span></h3>'
+       + body
+       + '<div class="legend">'
+       +   QCOLORS.map(function(c,i){ return '<span><i style="background:'+c+'"></i>'+SHORT_Q[i]+'</span>'; }).join('')
+       + '</div></div>';
+}
+
+function cardQE(s){
+  var w = 320, h = 70;
+  var series = s.qeSeries;
+  var any = series.some(function(p){ return p.value !== null; });
+  var chart = any ? lineChart(series, w, h, QCOLORS[2]) + axisLabels(s.buckets, w) : '';
+
+  var note = s.qeShare >= 40
+    ? '很好：完成的事项里有相当比例是「重要不紧急」，说明你在做有长期价值的事。'
+    : s.qeShare >= 20
+      ? '一般：有一部分精力投在长期价值上，可以再往上提。'
+      : '偏低：完成的事项几乎都是火烧眉毛的，考虑每天固定留一段时间给「重要不紧急」。';
+
+  return '<div class="card"><h3>重要不紧急占比趋势<span class="sub">最能反映规划能力</span></h3>'
+       + (any ? chart : '<div class="empty-stat">这段时间还没有完成记录</div>')
+       + (any ? '<div class="hint">窗口内平均 <b>'+s.qeShare+'%</b> 的完成事项属于「重要不紧急」。'+note+'</div>' : '')
+       + '</div>';
+}
+
+function cardFlow(s){
+  var w = 320, h = 80;
+  var created = s.buckets.map(function(b){ return b.created; });
+  var done    = s.buckets.map(function(b){ return b.done; });
+  var max = 1;
+  created.concat(done).forEach(function(v){ if(v>max) max=v; });
+  var n = s.buckets.length;
+  var gap = n > 45 ? 1 : (n > 20 ? 1.5 : 3);
+  var bw = (w - (n-1)*gap) / n;
+  var parts = [];
+  for(var i=0;i<n;i++){
+    var x = i*(bw+gap);
+    var hc = created[i]/max*h, hd = done[i]/max*h;
+    if(created[i]) parts.push('<rect x="'+(x+bw*0.42).toFixed(1)+'" y="'+(h-hc).toFixed(1)+'" width="'+(bw*0.55).toFixed(1)+'" height="'+hc.toFixed(1)+'" fill="'+QCOLORS[3]+'" rx="1"/>');
+    if(done[i])    parts.push('<rect x="'+x.toFixed(1)+'" y="'+(h-hd).toFixed(1)+'" width="'+(bw*0.55).toFixed(1)+'" height="'+hd.toFixed(1)+'" fill="var(--accent)" rx="1"/>');
+  }
+  var chart = '<svg viewBox="0 0 '+w+' '+h+'" class="chart" preserveAspectRatio="none">'+parts.join('')+'</svg>';
+  var any = s.buckets.some(function(b){ return b.created || b.done; });
+
+  var verdict = s.net > 0
+    ? '待办在堆积：窗口内新增比完成多 <b>'+s.net+'</b> 条。'
+    : s.net < 0
+      ? '在清旧账：窗口内完成比新增多 <b>'+(-s.net)+'</b> 条。'
+      : '进出平衡：新增与完成持平。';
+
+  return '<div class="card"><h3>新增 vs 完成<span class="sub">看净流入</span></h3>'
+       + (any ? chart + axisLabels(s.buckets, w) : '<div class="empty-stat">这段时间还没有记录</div>')
+       + '<div class="legend"><span><i style="background:var(--accent)"></i>完成 '+s.completed+'</span>'
+       +   '<span><i style="background:'+QCOLORS[3]+'"></i>新增 '+s.created+'</span></div>'
+       + (any ? '<div class="hint">'+verdict+' 完成/新增 比 = <b>'+s.ratio+'%</b>（超过 100% 说明在消化历史欠账）。</div>' : '')
+       + '</div>';
+}
+
+function cardDuration(s){
+  var rows = '', found = false;
+  var max = 0;
+  s.durByQuad.forEach(function(d){ if(d && d.avg > max) max = d.avg; });
+  for(var q=0;q<4;q++){
+    var d = s.durByQuad[q];
+    if(!d) { rows += '<div class="hbar"><span class="lb">'+SHORT_Q[q]+'</span><span class="track"></span><span class="num">—</span></div>'; continue; }
+    found = true;
+    var p = max ? Math.round(d.avg/max*100) : 0;
+    rows += '<div class="hbar"><span class="lb">'+SHORT_Q[q]+'</span>'
+         +  '<span class="track"><span class="fill" style="width:'+p+'%;background:'+QCOLORS[q]+'"></span></span>'
+         +  '<span class="num">'+fmtDur(d.avg)+'</span></div>';
+  }
+  return '<div class="card"><h3>平均完成周期<span class="sub">从创建到完成 · 按象限</span></h3>'
+       + rows
+       + '<div class="hint">'+(found
+          ? '对比「重要且紧急」和「重要不紧急」：前者明显更快是正常的；如果后者拖得特别久，说明长期事项一直被压后。'
+          : '还没有已完成的非重复待办。')+'</div></div>';
+}
+
+function cardHours(s){
+  var max = Math.max.apply(null, s.hours.concat([1]));
+  var bars = s.hours.map(function(v){
+    var h = v ? Math.max(3, Math.round(v/max*66)) : 3;
+    return '<div style="height:'+h+'px;opacity:'+(v?0.9:0.25)+'"></div>';
+  }).join('');
+  var any = s.hours.some(function(v){ return v>0; });
+  return '<div class="card"><h3>完成时段分布<span class="sub">你什么时候最能干成事</span></h3>'
+       + '<div class="hours">'+bars+'</div>'
+       + '<div class="axis"><span>0点</span><span>6点</span><span>12点</span><span>18点</span><span>23点</span></div>'
+       + (any ? '<div class="hint">你的高效时段在 <b>'+s.bestHour+' 点</b> 前后。把最难的事排到这里，比硬扛有效。</div>'
+              : '<div class="hint">这段时间还没有完成记录。</div>')
+       + '</div>';
+}
+
+function cardHabitToday(s){
+  var h = s.habit;
+  if(!h.total){
+    return '<div class="card"><h3>今日打卡</h3>'
+         + '<div class="empty-stat">还没有周期待办。<br>到「周期待办」页新建，这里就会开始统计。</div></div>';
+  }
+  var p = pct(h.todayDone, h.todayTotal);
+  var word = p >= 100 ? '今天全部完成 🎉' : p >= 50 ? '过半了，保持' : '今天才刚开始';
+  return '<div class="card"><h3>今日打卡<span class="sub">'+h.todayDone+' / '+h.todayTotal+' 条</span></h3>'
+       + '<div class="hbar" style="margin:0"><span class="track" style="height:20px">'
+       + '<span class="fill" style="width:'+p+'%;background:var(--accent)"></span></span></div>'
+       + '<div class="hint">'+word+'。其中日度待办 '+h.todayDailyDone+' / '+h.todayDailyTotal+' 条。'
+       + (h.somedayCount ? '另有 '+h.somedayCount+' 条长期待办。' : '') + '</div></div>';
+}
+
+function cardHabitHeat(s){
+  var days = s.habitDays;
+  var max = 1;
+  days.forEach(function(d){ if(d.done > max) max = d.done; });
+  var cells = days.map(function(d){
+    var bg = d.done
+      ? 'rgba(10,132,255,' + (0.28 + 0.72 * (d.done / max)).toFixed(2) + ')'
+      : 'var(--line)';
+    return '<span class="hcell" style="background:'+bg+'"></span>';
+  }).join('');
+  var total = days.reduce(function(a,d){ return a + d.done; }, 0);
+  var activeDays = days.filter(function(d){ return d.done > 0; }).length;
+  return '<div class="card"><h3>打卡热力图<span class="sub">越深 = 当天完成的习惯越多</span></h3>'
+       + '<div class="heat">'+cells+'</div>'
+       + '<div class="hint">这 '+days.length+' 天里有 <b>'+activeDays+'</b> 天打过卡，累计完成 <b>'+total+'</b> 次。'
+       + (activeDays === 0 ? '还没有习惯记录，今天开始打第一个卡吧。' : '') + '</div></div>';
+}
+
+function cardRecur(s){
+  var h = s.habit;
+  if(!h.items.length){
+    return '<div class="card"><h3>习惯稳定度</h3>'
+         + '<div class="empty-stat">还没有日度或周期待办。<br>新建后这里会统计你有没有坚持住。</div></div>';
+  }
+  var rows = h.items.map(function(r){
+    var p = Math.round(r.rate * 100);
+    var col = p >= 80 ? QCOLORS[2] : p >= 50 ? QCOLORS[1] : QCOLORS[0];
+    var detail = r.recurring === 'daily'
+      ? '每天 · 当前连续 <b>'+r.cur+'</b> 天 · 最长 <b>'+r.best+'</b> 天'
+      : '每 ' + r.intervalDays + ' 天';
+    return '<div class="rstab">'
+         +  '<div class="top"><span class="nm">'+esc(r.content)+'</span>'
+         +  '<span class="pct">'+r.did+' / '+r.expect+' 次 · '+p+'%</span></div>'
+         +  '<span class="track" style="display:block;height:13px;background:var(--bg);border-radius:7px;overflow:hidden">'
+         +  '<span class="fill" style="display:block;height:100%;width:'+p+'%;background:'+col+';border-radius:7px"></span></span>'
+         +  '<div class="hint" style="margin-top:5px">'+detail+'</div>'
+         +  '</div>';
+  }).join('');
+  var streakLine = h.streakAll > 0
+    ? '窗口内最长连续 <b>'+h.streakAll+'</b> 天把所有日度待办都完成了。'
+    : '窗口内还没有出现过「当天所有日度待办都完成」的连续记录。';
+  return '<div class="card"><h3>习惯稳定度<span class="sub">实际 / 应完成</span></h3>'
+       + rows
+       + '<div class="hint">'+streakLine+' 完成率最低的排在最上面，优先看它们。</div></div>';
+}
+
+function renderStats(){
+  var s = computeStats(ui.days);
+  var html = '<div class="sec-title">事项统计 · 四象限待办</div>'
+           + cardOverview(s)
+           + cardQuadrant(s) + cardDoneTrend(s) + cardQE(s)
+           + cardFlow(s) + cardDuration(s) + cardHours(s);
+  if(s.trend) html += '<div class="card"><h3>整体趋势<span class="sub">事项</span></h3>'
+                    + '<div class="hint" style="margin:0">'+s.trend+'</div></div>';
+  html += '<div class="sec-title">习惯统计 · 周期待办</div>'
+        + cardHabitToday(s) + cardHabitHeat(s) + cardRecur(s);
+  document.getElementById('statsBody').innerHTML = html;
+  document.querySelectorAll('#segRange button').forEach(function(b){
+    b.classList.toggle('on', parseInt(b.getAttribute('data-days'),10) === ui.days);
+  });
+}
+
 /* ============ 渲染：总入口 ============ */
 function render(){
   if(ui.tab === 'home') renderGrid();
   if(ui.tab === 'recur') renderRecur();
+  if(ui.tab === 'stats') renderStats();
   if(ui.quad !== null) renderQuad();
 }
 
@@ -569,10 +1117,8 @@ function syncRecurChips(){
   document.querySelectorAll('#recurChips .chip').forEach(function(c){
     c.classList.toggle('on', c.getAttribute('data-r') === draft.recur);
   });
-  var isRec = draft.recur !== 'none';
   document.getElementById('intervalField').classList.toggle('hidden', draft.recur !== 'interval');
-  // 重复性待办不走四象限，隐藏重要/紧急避免误解
-  document.getElementById('impUrgField').classList.toggle('hidden', isRec);
+  document.getElementById('impUrgField').classList.toggle('hidden', draft.recur !== 'none');
 }
 function toDateInput(ts){
   var d = new Date(ts);
@@ -616,7 +1162,7 @@ function saveEditor(){
       }
     });
   }else{
-    db.todos.push({
+    var nt = {
       id: uid(), content: content,
       createdAt: Date.now(), dueAt: dueAt, remindAt: remind,
       done: false, doneAt: null,
@@ -624,7 +1170,9 @@ function saveEditor(){
       deleted: false,
       recurring: recur, intervalDays: intervalDays,
       lastResetAt: recur ? Date.now() : null
-    });
+    };
+    db.todos.push(nt);
+    logEvent('create', nt);
   }
   save(); closeEditor(); render();
 }
@@ -642,6 +1190,7 @@ function toggleDone(id){
   if(!t) return;
   t.done = !t.done;
   t.doneAt = t.done ? Date.now() : null;
+  logEvent(t.done ? 'done' : 'undone', t);
   save(); render();
 }
 
@@ -659,10 +1208,7 @@ document.addEventListener('click', function(ev){
       if(it2) openEditor(it2.getAttribute('data-id'));
       return;
     }
-    if(act === 'add'){
-      openEditor(null, parseInt(el.getAttribute('data-q'),10));
-      return;
-    }
+    if(act === 'add'){ openEditor(null, parseInt(el.getAttribute('data-q'),10)); return; }
     if(act === 'open'){
       ui.quad = parseInt(el.getAttribute('data-q'),10);
       document.getElementById('screenQuad').classList.remove('hidden');
@@ -685,15 +1231,13 @@ document.addEventListener('click', function(ev){
     document.querySelectorAll('#segHome button').forEach(function(b){
       b.classList.toggle('on', b.getAttribute('data-sub') === ui.sub);
     });
-    render();
-    return;
+    render(); return;
   }
   var rb = ev.target.closest('[data-rtype]');
-  if(rb){
-    ui.rtype = rb.getAttribute('data-rtype');
-    renderRecur();
-    return;
-  }
+  if(rb){ ui.rtype = rb.getAttribute('data-rtype'); renderRecur(); return; }
+
+  var db2 = ev.target.closest('[data-days]');
+  if(db2){ ui.days = parseInt(db2.getAttribute('data-days'),10); renderStats(); return; }
 });
 
 function switchTab(tab){
@@ -709,6 +1253,7 @@ function switchTab(tab){
   document.getElementById('pageTitle').textContent =
     tab === 'home' ? '待办' : tab === 'recur' ? '周期待办' : '数据统计';
   if(tab === 'recur') renderRecur();
+  if(tab === 'stats') renderStats();
 }
 
 /* 编辑弹层 */
@@ -726,7 +1271,8 @@ document.getElementById('btnSave').addEventListener('click', saveEditor);
 document.getElementById('btnDelete').addEventListener('click', function(){
   if(!editingId) return;
   if(!confirm('确定删除这条待办？')) return;
-  db.todos.forEach(function(t){ if(t.id === editingId) t.deleted = true; });
+  var t = findTodo(editingId);
+  if(t){ t.deleted = true; logEvent('delete', t); }
   save(); closeEditor(); render();
 });
 document.getElementById('maskEdit').addEventListener('click', function(ev){
@@ -764,7 +1310,9 @@ document.getElementById('fileImport').addEventListener('change', function(ev){
       var o = JSON.parse(r.result);
       if(!o || !Array.isArray(o.todos)) throw new Error('格式不对');
       if(!confirm('导入将覆盖当前 '+active().length+' 条待办，继续？')) return;
-      db = o; save(); settle(); render();
+      db = o;
+      if(!db.log) db.log = [];
+      save(); migrate(); settle(); render();
       alert('导入成功，共 '+active().length+' 条待办。');
       document.getElementById('screenMenu').classList.add('hidden');
     }catch(e){ alert('导入失败：'+e.message); }
@@ -782,21 +1330,20 @@ document.getElementById('btnCopy').addEventListener('click', function(){
   }
 });
 document.getElementById('btnClear').addEventListener('click', function(){
-  if(!confirm('将删除全部待办，且无法撤销。确定？')) return;
+  if(!confirm('将删除全部待办和统计数据，且无法撤销。确定？')) return;
   if(!confirm('真的确定吗？建议先导出备份。')) return;
-  db = { version:1, todos:[] };
+  db = { version:2, todos:[], log:[] };
   save(); render();
   document.getElementById('screenMenu').classList.add('hidden');
 });
 
 /* ============ 启动 ============ */
 load();
+migrate();
 settle();
 render();
 switchTab('home');
 
-/* 切回前台、以及每分钟各结算一次，覆盖跨天/跨周期的情况。
-   只有真的发生了刷新才重绘，避免打断正在进行的编辑。 */
 document.addEventListener('visibilitychange', function(){
   if(!document.hidden && settle()) render();
 });
