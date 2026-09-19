@@ -37,12 +37,14 @@ input,textarea{font:inherit;color:var(--text)}
 .topbar h1{font-size:20px;margin:0;flex:1;font-weight:650;letter-spacing:.2px}
 .iconbtn{width:38px;height:38px;border-radius:50%;font-size:19px;color:var(--muted);display:grid;place-items:center}
 .iconbtn:active{background:var(--line)}
+#btnRecurAdd{color:var(--accent);font-size:24px;font-weight:300}
 
 /* ---------- 页面 ---------- */
 .page{flex:1;min-height:0;display:flex;flex-direction:column}
+.scrollarea{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:14px}
 
 /* 分段控件 */
-.seg{display:flex;gap:3px;margin:2px 14px 10px;background:var(--line);border-radius:9px;padding:3px}
+.seg{display:flex;gap:3px;margin:2px 14px 10px;background:var(--line);border-radius:9px;padding:3px;flex:none}
 .seg button{flex:1;padding:7px 0;border-radius:7px;font-size:14px;opacity:.62}
 .seg button.on{background:var(--card);opacity:1;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
 
@@ -72,8 +74,15 @@ input,textarea{font:inherit;color:var(--text)}
 .item .meta{font-size:11px;color:var(--muted);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
 .item .meta .over{color:var(--danger)}
 .item .meta .soon{color:var(--q1)}
-.expand{position:relative}
-.expand::after{content:"›";position:absolute;right:2px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px}
+
+/* ---------- 周期待办列表 ---------- */
+.rlist{background:var(--card);border-radius:var(--r);margin:0 14px;overflow:hidden}
+.rlist .item{padding:11px 12px}
+.rlist .item .txt{font-size:15px}
+.rlist .check{width:21px;height:21px;margin-top:2px}
+.r-empty{padding:54px 30px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.9}
+.r-empty .big{font-size:32px;margin-bottom:10px}
+.r-empty b{color:var(--text);font-weight:600}
 
 /* ---------- 底部标签栏 ---------- */
 .tabbar{display:flex;flex:none;border-top:1px solid var(--line);background:var(--card);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -95,15 +104,17 @@ input,textarea{font:inherit;color:var(--text)}
 .sheet h2{margin:0 0 14px;font-size:17px;font-weight:650}
 .field{margin-bottom:14px}
 .field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:500}
-.field textarea,.field input[type=date],.field input[type=datetime-local]{
+.field textarea,.field input[type=date],.field input[type=datetime-local],.field input[type=number]{
   width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:15px;outline:none
 }
-@media (prefers-color-scheme:dark){.field textarea,.field input[type=date],.field input[type=datetime-local]{background:#2c2c2e}}
+@media (prefers-color-scheme:dark){.field textarea,.field input[type=date],.field input[type=datetime-local],.field input[type=number]{background:#2c2c2e}}
 .field textarea{resize:none;min-height:76px;line-height:1.5}
 .field textarea:focus,.field input:focus{border-color:var(--accent)}
 .chips{display:flex;gap:8px}
+.chips.wrap{flex-wrap:wrap}
 .chip{flex:1;padding:11px 0;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:14px;color:var(--muted);text-align:center}
 @media (prefers-color-scheme:dark){.chip{background:#2c2c2e}}
+.chips.wrap .chip{flex:1 1 46%;padding:10px 4px;font-size:13.5px}
 .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 .chip.on.warn{background:var(--q0);border-color:var(--q0)}
 .sheet-actions{display:flex;gap:10px;margin-top:20px}
@@ -133,6 +144,7 @@ input,textarea{font:inherit;color:var(--text)}
 
 <div class="topbar">
   <h1 id="pageTitle">待办</h1>
+  <button class="iconbtn hidden" id="btnRecurAdd" aria-label="新建周期待办">＋</button>
   <button class="iconbtn" id="btnMenu" aria-label="数据管理">⋯</button>
 </div>
 
@@ -147,18 +159,16 @@ input,textarea{font:inherit;color:var(--text)}
   <div class="grid" id="grid"></div>
 </div>
 
-<!-- ========== 周期待办（占位） ========== -->
+<!-- ========== 周期待办 ========== -->
 <div class="page hidden" id="page-recur">
-  <div class="holder">
-    <div class="big">🔄</div>
-    <h3>周期待办</h3>
-    <p>下一阶段实现。规划中的三个子页面：</p>
-    <ul>
-      <li><b>日度待办</b> — 每天 0 点后自动刷新为未完成</li>
-      <li><b>周期待办</b> — 新建时自定间隔，如每 3 天刷新</li>
-      <li><b>长期待办</b> — Someday/Maybe：想做但当下不合适，以后有机会再做</li>
-    </ul>
-    <p style="margin-top:18px;font-size:12.5px">刷新用「惰性结算」实现：打开应用时对比上次结算时间，不依赖后台常驻。</p>
+  <div class="seg" id="segRecur">
+    <button data-rtype="daily" class="on">日度</button>
+    <button data-rtype="interval">周期</button>
+    <button data-rtype="someday">长期</button>
+  </div>
+  <div class="scrollarea">
+    <div class="rlist" id="recurList"></div>
+    <div class="r-empty hidden" id="recurEmpty"></div>
   </div>
 </div>
 
@@ -222,6 +232,21 @@ input,textarea{font:inherit;color:var(--text)}
     </div>
 
     <div class="field">
+      <label>重复方式</label>
+      <div class="chips wrap" id="recurChips">
+        <div class="chip on" data-r="none">不重复</div>
+        <div class="chip" data-r="daily">每天刷新</div>
+        <div class="chip" data-r="interval">每 N 天刷新</div>
+        <div class="chip" data-r="someday">长期（以后再做）</div>
+      </div>
+    </div>
+
+    <div class="field hidden" id="intervalField">
+      <label>每隔多少天刷新为未完成</label>
+      <input type="number" id="fInterval" min="1" max="365" value="3" inputmode="numeric">
+    </div>
+
+    <div class="field" id="impUrgField">
       <label>属性（决定它属于哪个象限）</label>
       <div class="chips">
         <div class="chip" id="chipImp">重要</div>
@@ -265,6 +290,7 @@ input,textarea{font:inherit;color:var(--text)}
 /* ============ 常量 ============ */
 var KEY = 'dsh.todo.v1';
 var SHOW_MAX = 3;
+var DAY = 86400000;
 
 // 布局顺序：左上、右上、左下、右下
 // 横轴 重要(左) / 不重要(右)；纵轴 紧急(上) / 不紧急(下)
@@ -275,12 +301,18 @@ var QUADS = [
   {name:'不重要不紧急', dot:'var(--q3)', imp:false, urg:false}
 ];
 
+var RTYPES = {
+  daily:   {label:'日度待办', empty:'还没有日度待办', tip:'每天 0 点后自动刷新为未完成。<br>比如「每天喝水 2L」「每天读 30 分钟」'},
+  interval:{label:'周期待办', empty:'还没有周期待办', tip:'按你设定的天数自动刷新。<br>比如「每 3 天浇花」「每 7 天复盘」'},
+  someday: {label:'长期待办', empty:'还没有长期待办', tip:'想做、但当下不方便或还不合适的事。<br>以后有机会再做，或当作一个长期的方向。'}
+};
+
 /* ============ 状态 ============ */
 var db = { version:1, todos:[] };
-var ui = { tab:'home', sub:'pending', quad:null };
+var ui = { tab:'home', sub:'pending', quad:null, rtype:'daily' };
 var storageOK = true;
 var editingId = null;
-var draft = { imp:true, urg:true };
+var draft = { imp:true, urg:true, recur:'none', intervalDays:3 };
 
 /* ============ 存储 ============ */
 function load(){
@@ -312,8 +344,12 @@ function quadOf(t){
   return 3;
 }
 function active(){ return db.todos.filter(function(t){ return !t.deleted; }); }
+function isRecur(t){ return !!t.recurring && t.recurring !== 'none'; }
 function inQuad(q, done){
-  return active().filter(function(t){ return quadOf(t)===q && !!t.done===done; });
+  return active().filter(function(t){ return !isRecur(t) && quadOf(t)===q && !!t.done===done; });
+}
+function inRecur(type){
+  return active().filter(function(t){ return t.recurring === type; });
 }
 function esc(s){
   return String(s).replace(/[&<>"']/g, function(c){
@@ -322,11 +358,63 @@ function esc(s){
 }
 function dayStart(ts){ var d=new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
 
+/* ============ 周期待办：惰性结算 ============ */
+/* 不依赖后台任务：每次打开、切回前台、每分钟检查一次，
+   把到期的周期待办刷新成未完成。返回是否发生了变更。 */
+function settle(){
+  var now = Date.now();
+  var today = dayStart(now);
+  var changed = false;
+
+  db.todos.forEach(function(t){
+    if(t.deleted || !t.recurring || t.recurring === 'someday') return;
+
+    var anchor = t.lastResetAt || t.createdAt || now;
+    var due = false;
+
+    if(t.recurring === 'daily'){
+      due = today > dayStart(anchor);
+    }else if(t.recurring === 'interval'){
+      var n = Math.max(1, parseInt(t.intervalDays, 10) || 1);
+      due = (now - anchor) >= n * DAY;
+    }
+    if(!due) return;
+
+    if(t.done){ t.done = false; t.doneAt = null; changed = true; }
+    t.lastResetAt = now;
+    changed = true;
+  });
+
+  if(changed) save();
+  return changed;
+}
+
+/* ============ 文案 ============ */
+function recurText(t){
+  if(!isRecur(t)) return null;
+  if(t.recurring === 'daily') return '每天刷新';
+  if(t.recurring === 'interval') return '每 ' + (Math.max(1, parseInt(t.intervalDays,10)||1)) + ' 天刷新';
+  return '长期';
+}
+function nextResetText(t){
+  if(!t.done || !isRecur(t) || t.recurring === 'someday') return null;
+  var now = Date.now(), next;
+  if(t.recurring === 'daily'){
+    next = dayStart(now) + DAY;
+  }else{
+    next = (t.lastResetAt || now) + Math.max(1, parseInt(t.intervalDays,10)||1) * DAY;
+  }
+  var diff = next - now;
+  if(diff <= 0) return '即将刷新';
+  var h = Math.ceil(diff / 3600000);
+  if(h <= 36) return h + ' 小时后刷新';
+  return Math.ceil(diff / DAY) + ' 天后刷新';
+}
 function dueText(t){
-  if(!t.dueAt) return null;
+  if(!t.dueAt || isRecur(t)) return null;
   var today = dayStart(Date.now());
   var due   = dayStart(t.dueAt);
-  var diff  = Math.round((due - today)/86400000);
+  var diff  = Math.round((due - today)/DAY);
   var label = diff===0 ? '今天' : diff===1 ? '明天' : diff===-1 ? '昨天'
             : (due<today ? '逾期' : (new Date(t.dueAt).getMonth()+1)+'/'+new Date(t.dueAt).getDate());
   var cls = due<today ? 'over' : (diff<=1 ? 'soon' : '');
@@ -335,8 +423,17 @@ function dueText(t){
 
 /* ============ 渲染：条目 ============ */
 function itemHTML(t){
+  var metas = [];
   var d = dueText(t);
-  var meta = d ? '<div class="meta"><span class="'+d.cls+'">'+esc(d.label)+'</span></div>' : '';
+  if(d) metas.push('<span class="'+d.cls+'">'+esc(d.label)+'</span>');
+  var r = recurText(t);
+  if(r) metas.push('<span>'+esc(r)+'</span>');
+  if(t.done){
+    var n = nextResetText(t);
+    if(n) metas.push('<span>'+esc(n)+'</span>');
+  }
+  var meta = metas.length ? '<div class="meta">'+metas.join('')+'</div>' : '';
+
   return '<div class="item'+(t.done?' done':'')+'" data-id="'+t.id+'">'
        +   '<button class="check" data-act="toggle" aria-label="切换完成"></button>'
        +   '<div class="body" data-act="edit">'
@@ -390,14 +487,45 @@ function renderQuad(){
       + '<p>'+(done?'这个象限还没有已完成的待办':'这个象限还没有待办')+'</p></div>';
 }
 
+/* ============ 渲染：周期待办 ============ */
+function renderRecur(){
+  var type = ui.rtype;
+  var list = inRecur(type);
+  list.sort(function(a,b){
+    if(a.done !== b.done) return a.done ? 1 : -1;
+    return (a.createdAt||0) - (b.createdAt||0);
+  });
+
+  var box = document.getElementById('recurList');
+  var empty = document.getElementById('recurEmpty');
+  var info = RTYPES[type];
+
+  if(list.length === 0){
+    box.innerHTML = '';
+    box.classList.add('hidden');
+    empty.classList.remove('hidden');
+    empty.innerHTML = '<div class="big">🗒</div><b>'+info.empty+'</b><br>'+info.tip
+      + '<br><br>点右上角 <b>＋</b> 新建';
+  }else{
+    empty.classList.add('hidden');
+    empty.innerHTML = '';
+    box.classList.remove('hidden');
+    box.innerHTML = list.map(itemHTML).join('');
+  }
+  document.querySelectorAll('#segRecur button').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-rtype') === type);
+  });
+}
+
 /* ============ 渲染：总入口 ============ */
 function render(){
   if(ui.tab === 'home') renderGrid();
+  if(ui.tab === 'recur') renderRecur();
   if(ui.quad !== null) renderQuad();
 }
 
 /* ============ 编辑器 ============ */
-function openEditor(id, presetQuad){
+function openEditor(id, presetQuad, presetRecur){
   editingId = id || null;
   var t = id ? db.todos.filter(function(x){return x.id===id;})[0] : null;
 
@@ -406,18 +534,29 @@ function openEditor(id, presetQuad){
   if(t){
     draft.imp = !!t.important;
     draft.urg = !!t.urgent;
+    draft.recur = isRecur(t) ? t.recurring : 'none';
+    draft.intervalDays = Math.max(1, parseInt(t.intervalDays,10) || 3);
     document.getElementById('fContent').value = t.content || '';
     document.getElementById('fDue').value = t.dueAt ? toDateInput(t.dueAt) : '';
     document.getElementById('fRemind').value = t.remindAt ? toLocalInput(t.remindAt) : '';
   }else{
-    var pq = (presetQuad === undefined || presetQuad === null) ? 0 : presetQuad;
-    draft.imp = QUADS[pq].imp;
-    draft.urg = QUADS[pq].urg;
+    draft.recur = presetRecur || 'none';
+    draft.intervalDays = 3;
+    if(draft.recur === 'none'){
+      var pq = (presetQuad === undefined || presetQuad === null) ? 0 : presetQuad;
+      draft.imp = QUADS[pq].imp;
+      draft.urg = QUADS[pq].urg;
+    }else{
+      draft.imp = true; draft.urg = true;
+    }
     document.getElementById('fContent').value = '';
     document.getElementById('fDue').value = '';
     document.getElementById('fRemind').value = '';
   }
+
+  document.getElementById('fInterval').value = draft.intervalDays;
   syncChips();
+  syncRecurChips();
   document.getElementById('editDeleteRow').classList.toggle('hidden', !t);
   document.getElementById('maskEdit').classList.remove('hidden');
   if(!t) setTimeout(function(){ document.getElementById('fContent').focus(); }, 120);
@@ -425,6 +564,15 @@ function openEditor(id, presetQuad){
 function syncChips(){
   document.getElementById('chipImp').classList.toggle('on', draft.imp);
   document.getElementById('chipUrg').classList.toggle('on', draft.urg);
+}
+function syncRecurChips(){
+  document.querySelectorAll('#recurChips .chip').forEach(function(c){
+    c.classList.toggle('on', c.getAttribute('data-r') === draft.recur);
+  });
+  var isRec = draft.recur !== 'none';
+  document.getElementById('intervalField').classList.toggle('hidden', draft.recur !== 'interval');
+  // 重复性待办不走四象限，隐藏重要/紧急避免误解
+  document.getElementById('impUrgField').classList.toggle('hidden', isRec);
 }
 function toDateInput(ts){
   var d = new Date(ts);
@@ -445,14 +593,26 @@ function saveEditor(){
   var dueAt  = dueVal ? new Date(dueVal+'T23:59:59').getTime() : null;
   var remind = remVal ? new Date(remVal).getTime() : null;
 
+  var recur = (draft.recur === 'none') ? null : draft.recur;
+  var intervalDays = (recur === 'interval')
+    ? Math.max(1, Math.min(365, parseInt(document.getElementById('fInterval').value,10) || 1))
+    : null;
+
   if(editingId){
     db.todos.forEach(function(t){
-      if(t.id === editingId){
-        t.content   = content;
-        t.important = draft.imp;
-        t.urgent    = draft.urg;
-        t.dueAt     = dueAt;
-        t.remindAt  = remind;
+      if(t.id !== editingId) return;
+      var oldRecur = t.recurring;
+      t.content   = content;
+      t.important = draft.imp;
+      t.urgent    = draft.urg;
+      t.dueAt     = dueAt;
+      t.remindAt  = remind;
+      t.recurring = recur;
+      t.intervalDays = intervalDays;
+      if(recur){
+        if(oldRecur !== recur || !t.lastResetAt) t.lastResetAt = Date.now();
+      }else{
+        t.lastResetAt = null;
       }
     });
   }else{
@@ -462,7 +622,8 @@ function saveEditor(){
       done: false, doneAt: null,
       important: draft.imp, urgent: draft.urg,
       deleted: false,
-      recurring: null, intervalDays: null, lastResetAt: null
+      recurring: recur, intervalDays: intervalDays,
+      lastResetAt: recur ? Date.now() : null
     });
   }
   save(); closeEditor(); render();
@@ -488,7 +649,7 @@ document.addEventListener('click', function(ev){
   var el = ev.target.closest('[data-act]');
   if(el){
     var act = el.getAttribute('data-act');
-    if(act === 'toggle'){ 
+    if(act === 'toggle'){
       var it = el.closest('.item');
       if(it) toggleDone(it.getAttribute('data-id'));
       return;
@@ -516,10 +677,8 @@ document.addEventListener('click', function(ev){
     return;
   }
   var tb = ev.target.closest('[data-tab]');
-  if(tb){
-    switchTab(tb.getAttribute('data-tab'));
-    return;
-  }
+  if(tb){ switchTab(tb.getAttribute('data-tab')); return; }
+
   var sb = ev.target.closest('[data-sub]');
   if(sb){
     ui.sub = sb.getAttribute('data-sub');
@@ -527,6 +686,12 @@ document.addEventListener('click', function(ev){
       b.classList.toggle('on', b.getAttribute('data-sub') === ui.sub);
     });
     render();
+    return;
+  }
+  var rb = ev.target.closest('[data-rtype]');
+  if(rb){
+    ui.rtype = rb.getAttribute('data-rtype');
+    renderRecur();
     return;
   }
 });
@@ -540,13 +705,22 @@ function switchTab(tab){
     b.classList.toggle('on', b.getAttribute('data-tab') === tab);
   });
   document.getElementById('btnMenu').classList.toggle('hidden', tab !== 'home');
+  document.getElementById('btnRecurAdd').classList.toggle('hidden', tab !== 'recur');
   document.getElementById('pageTitle').textContent =
     tab === 'home' ? '待办' : tab === 'recur' ? '周期待办' : '数据统计';
+  if(tab === 'recur') renderRecur();
 }
 
 /* 编辑弹层 */
 document.getElementById('chipImp').addEventListener('click', function(){ draft.imp = !draft.imp; syncChips(); });
 document.getElementById('chipUrg').addEventListener('click', function(){ draft.urg = !draft.urg; syncChips(); });
+document.getElementById('recurChips').addEventListener('click', function(ev){
+  var c = ev.target.closest('[data-r]');
+  if(!c) return;
+  draft.recur = c.getAttribute('data-r');
+  if(draft.recur === 'interval' && !draft.intervalDays) draft.intervalDays = 3;
+  syncRecurChips();
+});
 document.getElementById('btnCancel').addEventListener('click', closeEditor);
 document.getElementById('btnSave').addEventListener('click', saveEditor);
 document.getElementById('btnDelete').addEventListener('click', function(){
@@ -560,6 +734,9 @@ document.getElementById('maskEdit').addEventListener('click', function(ev){
 });
 document.getElementById('quadAdd').addEventListener('click', function(){
   if(ui.quad !== null) openEditor(null, ui.quad);
+});
+document.getElementById('btnRecurAdd').addEventListener('click', function(){
+  openEditor(null, null, ui.rtype);
 });
 
 /* 数据管理 */
@@ -587,7 +764,7 @@ document.getElementById('fileImport').addEventListener('change', function(ev){
       var o = JSON.parse(r.result);
       if(!o || !Array.isArray(o.todos)) throw new Error('格式不对');
       if(!confirm('导入将覆盖当前 '+active().length+' 条待办，继续？')) return;
-      db = o; save(); render();
+      db = o; save(); settle(); render();
       alert('导入成功，共 '+active().length+' 条待办。');
       document.getElementById('screenMenu').classList.add('hidden');
     }catch(e){ alert('导入失败：'+e.message); }
@@ -614,15 +791,24 @@ document.getElementById('btnClear').addEventListener('click', function(){
 
 /* ============ 启动 ============ */
 load();
+settle();
 render();
 switchTab('home');
+
+/* 切回前台、以及每分钟各结算一次，覆盖跨天/跨周期的情况。
+   只有真的发生了刷新才重绘，避免打断正在进行的编辑。 */
+document.addEventListener('visibilitychange', function(){
+  if(!document.hidden && settle()) render();
+});
+setInterval(function(){ if(settle()) render(); }, 60000);
+
 })();
 
 /* 注册 Service Worker：实现「断网也能打开」。
    只在 http/https 下注册；用本地文件（file://）打开时跳过。 */
 if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
   window.addEventListener('load', function(){
-    navigator.serviceWorker.register('./sw.js').catch(function(){});
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(function(){});
   });
 }
 </script>

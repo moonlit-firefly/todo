@@ -1,7 +1,7 @@
 // Service Worker：把应用外壳缓存到本地，实现「断网也能打开、打开即秒开」。
 // 策略为「缓存优先 + 后台静默更新」：本地应用没有服务端数据，缓存里就是最新版。
 // 以后升级应用时，把 VERSION 改一下（如 todo-v2）即可让旧缓存自动失效。
-const VERSION = 'todo-v1';
+const VERSION = 'todo-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -12,9 +12,12 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
+  // 给资源加上 ?v=VERSION，绕开托管平台的 CDN 缓存，
+  // 确保升级时抓到的是新文件而不是旧的 index.html
+  const bust = ASSETS.map((u) => u + (u.indexOf('?') >= 0 ? '&' : '?') + 'v=' + VERSION);
   e.waitUntil(
     caches.open(VERSION)
-      .then((c) => c.addAll(ASSETS))
+      .then((c) => c.addAll(bust))
       .catch(() => {})
       .then(() => self.skipWaiting())
   );
