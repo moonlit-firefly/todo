@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="待办">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<title>待办</title>
+<style>
+:root{
+  --bg:#f2f2f7; --card:#fff; --text:#1c1c1e; --muted:#8e8e93; --line:#e4e4e9;
+  --accent:#0a84ff; --danger:#ff3b30;
+  --q0:#ff3b30; --q1:#ff9500; --q2:#34c759; --q3:#a1a1a6;
+  --r:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#000;--card:#1c1c1e;--text:#f2f2f7;--muted:#98989d;--line:#2c2c2e;--q3:#8e8e93;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{
+  background:var(--bg);color:var(--text);
+  font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  display:flex;flex-direction:column;
+  height:100vh;height:100dvh;overflow:hidden;touch-action:manipulation;
+}
+button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
+.hidden{display:none!important}
+input,textarea{font:inherit;color:var(--text)}
+
+/* ---------- 顶栏 ---------- */
+.topbar{display:flex;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 14px 6px}
+.topbar h1{font-size:20px;margin:0;flex:1;font-weight:650;letter-spacing:.2px}
+.iconbtn{width:38px;height:38px;border-radius:50%;font-size:19px;color:var(--muted);display:grid;place-items:center}
+.iconbtn:active{background:var(--line)}
+
+/* ---------- 页面 ---------- */
+.page{flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* 分段控件 */
+.seg{display:flex;gap:3px;margin:2px 14px 10px;background:var(--line);border-radius:9px;padding:3px}
+.seg button{flex:1;padding:7px 0;border-radius:7px;font-size:14px;opacity:.62}
+.seg button.on{background:var(--card);opacity:1;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* ---------- 四象限网格 ---------- */
+.grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:0 10px}
+.q{background:var(--card);border-radius:var(--r);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.q-head{display:flex;align-items:center;gap:5px;padding:8px 8px 6px;border-bottom:1px solid var(--line);flex:none}
+.q-dot{width:7px;height:7px;border-radius:50%;flex:none}
+.q-title{font-size:12px;font-weight:650;flex:1;line-height:1.15;letter-spacing:-.1px}
+.q-count{font-size:11px;color:var(--muted);font-weight:400}
+.q-add{font-size:21px;line-height:1;color:var(--accent);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:none;font-weight:300}
+.q-add:active{background:var(--line)}
+.q-list{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:1px 0}
+.q-foot{padding:6px 8px;font-size:12px;color:var(--accent);border-top:1px solid var(--line);text-align:center;flex:none}
+.q-empty{padding:14px 10px;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.5}
+
+/* ---------- 待办条目 ---------- */
+.item{display:flex;align-items:flex-start;gap:7px;padding:7px 8px 7px 8px;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item:active{background:var(--line)}
+.check{width:19px;height:19px;border-radius:50%;border:1.8px solid var(--muted);flex:none;margin-top:1px;display:grid;place-items:center;transition:background .12s,border-color .12s}
+.item.done .check{background:var(--accent);border-color:var(--accent)}
+.item.done .check::after{content:"";width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.item .body{flex:1;min-width:0}
+.item .txt{font-size:13.5px;line-height:1.35;word-break:break-word}
+.item.done .txt{text-decoration:line-through;color:var(--muted)}
+.item .meta{font-size:11px;color:var(--muted);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
+.item .meta .over{color:var(--danger)}
+.item .meta .soon{color:var(--q1)}
+.expand{position:relative}
+.expand::after{content:"›";position:absolute;right:2px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px}
+
+/* ---------- 底部标签栏 ---------- */
+.tabbar{display:flex;flex:none;border-top:1px solid var(--line);background:var(--card);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabbar button{flex:1;padding:9px 0 10px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabbar button .ic{font-size:17px;line-height:1}
+.tabbar button.on{color:var(--accent);font-weight:600}
+
+/* ---------- 整屏详情 ---------- */
+.screen{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;flex-direction:column}
+.screen-head{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 12px) 14px 10px;border-bottom:1px solid var(--line)}
+.screen-head h2{margin:0;font-size:17px;flex:1;font-weight:650}
+.screen-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.back{color:var(--accent);font-size:16px;display:flex;align-items:center;gap:2px;padding:4px 6px 4px 0}
+
+/* ---------- 底部弹层 ---------- */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;display:flex;align-items:flex-end}
+.sheet{background:var(--card);width:100%;max-height:92vh;overflow-y:auto;border-radius:16px 16px 0 0;padding:6px 18px calc(env(safe-area-inset-bottom,0px) + 18px)}
+.sheet-grip{width:36px;height:4px;border-radius:2px;background:var(--line);margin:6px auto 12px}
+.sheet h2{margin:0 0 14px;font-size:17px;font-weight:650}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.field textarea,.field input[type=date],.field input[type=datetime-local]{
+  width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:15px;outline:none
+}
+@media (prefers-color-scheme:dark){.field textarea,.field input[type=date],.field input[type=datetime-local]{background:#2c2c2e}}
+.field textarea{resize:none;min-height:76px;line-height:1.5}
+.field textarea:focus,.field input:focus{border-color:var(--accent)}
+.chips{display:flex;gap:8px}
+.chip{flex:1;padding:11px 0;border-radius:10px;background:var(--bg);border:1px solid var(--line);font-size:14px;color:var(--muted);text-align:center}
+@media (prefers-color-scheme:dark){.chip{background:#2c2c2e}}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.chip.on.warn{background:var(--q0);border-color:var(--q0)}
+.sheet-actions{display:flex;gap:10px;margin-top:20px}
+.btn{flex:1;padding:13px 0;border-radius:11px;font-size:15.5px;text-align:center;font-weight:600}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.ghost{background:var(--bg);color:var(--text)}
+@media (prefers-color-scheme:dark){.btn.ghost{background:#2c2c2e}}
+.btn.danger{background:transparent;color:var(--danger)}
+.btn:active{opacity:.75}
+
+/* ---------- 菜单 / 占位 ---------- */
+.menu-list{background:var(--card);border-radius:var(--r);overflow:hidden;margin:0 14px}
+.menu-list button{display:block;width:100%;text-align:left;padding:15px 16px;font-size:15.5px;border-bottom:1px solid var(--line)}
+.menu-list button:last-child{border-bottom:0}
+.menu-list button.danger{color:var(--danger)}
+.menu-list button:active{background:var(--line)}
+.holder{padding:60px 30px;text-align:center;color:var(--muted)}
+.holder .big{font-size:34px;margin-bottom:14px}
+.holder h3{color:var(--text);font-size:16px;margin:0 0 10px}
+.holder p{font-size:13.5px;line-height:1.7;margin:0 0 8px}
+.holder ul{text-align:left;font-size:13px;line-height:1.9;padding-left:20px;margin:14px 0 0;display:inline-block}
+.warnbar{background:#ff950022;color:#c86a00;font-size:12.5px;padding:9px 14px;text-align:center}
+@media (prefers-color-scheme:dark){.warnbar{color:#ffb340}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1 id="pageTitle">待办</h1>
+  <button class="iconbtn" id="btnMenu" aria-label="数据管理">⋯</button>
+</div>
+
+<div id="storeWarn" class="warnbar hidden">⚠️ 本浏览器不允许本地存储，数据在关闭页面后会丢失。请定期导出备份。</div>
+
+<!-- ========== 主页 ========== -->
+<div class="page" id="page-home">
+  <div class="seg" id="segHome">
+    <button data-sub="pending" class="on">待完成</button>
+    <button data-sub="done">已完成</button>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- ========== 周期待办（占位） ========== -->
+<div class="page hidden" id="page-recur">
+  <div class="holder">
+    <div class="big">🔄</div>
+    <h3>周期待办</h3>
+    <p>下一阶段实现。规划中的三个子页面：</p>
+    <ul>
+      <li><b>日度待办</b> — 每天 0 点后自动刷新为未完成</li>
+      <li><b>周期待办</b> — 新建时自定间隔，如每 3 天刷新</li>
+      <li><b>长期待办</b> — Someday/Maybe：想做但当下不合适，以后有机会再做</li>
+    </ul>
+    <p style="margin-top:18px;font-size:12.5px">刷新用「惰性结算」实现：打开应用时对比上次结算时间，不依赖后台常驻。</p>
+  </div>
+</div>
+
+<!-- ========== 数据统计（占位） ========== -->
+<div class="page hidden" id="page-stats">
+  <div class="holder">
+    <div class="big">📊</div>
+    <h3>数据统计</h3>
+    <p>下一阶段实现。规划中的指标：</p>
+    <ul>
+      <li>四象限分布</li>
+      <li><b>重要不紧急占比趋势</b>（最能反映规划能力）</li>
+      <li>日 / 周 / 月完成率</li>
+      <li>逾期率</li>
+      <li>平均完成周期（按象限）</li>
+      <li>新增 vs 完成 的净流入</li>
+      <li>完成时段分布</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ========== 数据管理菜单 ========== -->
+<div class="screen hidden" id="screenMenu">
+  <div class="screen-head">
+    <button class="back" data-close="screenMenu">‹ 返回</button>
+    <h2>数据管理</h2>
+  </div>
+  <div class="screen-body" style="padding-top:14px">
+    <div class="menu-list">
+      <button id="btnExport">导出备份（JSON）</button>
+      <button id="btnImport">导入备份（JSON）</button>
+      <button id="btnCopy">复制备份到剪贴板</button>
+      <button class="danger" id="btnClear">清空全部数据</button>
+    </div>
+    <p style="padding:16px 18px;font-size:12.5px;color:var(--muted);line-height:1.7">
+      数据只保存在这台设备的浏览器里，不上传任何服务器。<br>
+      浏览器清理缓存或卸载时可能连同数据一起删除，<b>建议每周导出一次备份</b>。
+    </p>
+  </div>
+</div>
+
+<!-- ========== 象限详情 ========== -->
+<div class="screen hidden" id="screenQuad">
+  <div class="screen-head">
+    <button class="back" data-close="screenQuad">‹ 返回</button>
+    <h2 id="quadTitle">象限</h2>
+    <button class="iconbtn" id="quadAdd" style="color:var(--accent)">＋</button>
+  </div>
+  <div class="screen-body" id="quadBody"></div>
+</div>
+
+<!-- ========== 编辑弹层 ========== -->
+<div class="mask hidden" id="maskEdit">
+  <div class="sheet" id="sheetEdit">
+    <div class="sheet-grip"></div>
+    <h2 id="editTitle">新建待办</h2>
+
+    <div class="field">
+      <label>待办内容</label>
+      <textarea id="fContent" placeholder="要做什么？"></textarea>
+    </div>
+
+    <div class="field">
+      <label>属性（决定它属于哪个象限）</label>
+      <div class="chips">
+        <div class="chip" id="chipImp">重要</div>
+        <div class="chip warn" id="chipUrg">紧急</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>截止日期（可留空）</label>
+      <input type="date" id="fDue">
+    </div>
+
+    <div class="field">
+      <label>提醒时间（可留空，暂不触发通知）</label>
+      <input type="datetime-local" id="fRemind">
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn ghost" id="btnCancel">取消</button>
+      <button class="btn primary" id="btnSave">保存</button>
+    </div>
+    <div class="sheet-actions hidden" id="editDeleteRow">
+      <button class="btn danger" id="btnDelete">删除这条待办</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileImport" accept=".json,application/json" class="hidden">
+
+<!-- ========== 底部标签栏 ========== -->
+<nav class="tabbar" id="tabbar">
+  <button data-tab="home" class="on"><span class="ic">☑</span>主页</button>
+  <button data-tab="recur"><span class="ic">🔄</span>周期待办</button>
+  <button data-tab="stats"><span class="ic">📊</span>数据统计</button>
+</nav>
+
+<script>
+(function(){
+'use strict';
+
+/* ============ 常量 ============ */
+var KEY = 'dsh.todo.v1';
+var SHOW_MAX = 3;
+
+// 布局顺序：左上、右上、左下、右下
+// 横轴 重要(左) / 不重要(右)；纵轴 紧急(上) / 不紧急(下)
+var QUADS = [
+  {name:'重要且紧急',   dot:'var(--q0)', imp:true,  urg:true },
+  {name:'不重要但紧急', dot:'var(--q1)', imp:false, urg:true },
+  {name:'重要不紧急',   dot:'var(--q2)', imp:true,  urg:false},
+  {name:'不重要不紧急', dot:'var(--q3)', imp:false, urg:false}
+];
+
+/* ============ 状态 ============ */
+var db = { version:1, todos:[] };
+var ui = { tab:'home', sub:'pending', quad:null };
+var storageOK = true;
+var editingId = null;
+var draft = { imp:true, urg:true };
+
+/* ============ 存储 ============ */
+function load(){
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(raw){
+      var o = JSON.parse(raw);
+      if(o && Array.isArray(o.todos)) db = o;
+    }
+  }catch(e){ storageOK = false; }
+  if(!storageOK){
+    try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); storageOK = true; }
+    catch(e){ storageOK = false; }
+  }
+  if(!storageOK) document.getElementById('storeWarn').classList.remove('hidden');
+}
+function save(){
+  if(!storageOK) return;
+  try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){}
+}
+
+/* ============ 工具 ============ */
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function quadOf(t){
+  if(t.important && t.urgent) return 0;
+  if(!t.important && t.urgent) return 1;
+  if(t.important && !t.urgent) return 2;
+  return 3;
+}
+function active(){ return db.todos.filter(function(t){ return !t.deleted; }); }
+function inQuad(q, done){
+  return active().filter(function(t){ return quadOf(t)===q && !!t.done===done; });
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function dayStart(ts){ var d=new Date(ts); d.setHours(0,0,0,0); return d.getTime(); }
+
+function dueText(t){
+  if(!t.dueAt) return null;
+  var today = dayStart(Date.now());
+  var due   = dayStart(t.dueAt);
+  var diff  = Math.round((due - today)/86400000);
+  var label = diff===0 ? '今天' : diff===1 ? '明天' : diff===-1 ? '昨天'
+            : (due<today ? '逾期' : (new Date(t.dueAt).getMonth()+1)+'/'+new Date(t.dueAt).getDate());
+  var cls = due<today ? 'over' : (diff<=1 ? 'soon' : '');
+  return {label:'⏰ '+label, cls:cls};
+}
+
+/* ============ 渲染：条目 ============ */
+function itemHTML(t){
+  var d = dueText(t);
+  var meta = d ? '<div class="meta"><span class="'+d.cls+'">'+esc(d.label)+'</span></div>' : '';
+  return '<div class="item'+(t.done?' done':'')+'" data-id="'+t.id+'">'
+       +   '<button class="check" data-act="toggle" aria-label="切换完成"></button>'
+       +   '<div class="body" data-act="edit">'
+       +     '<div class="txt">'+esc(t.content)+'</div>'
+       +     meta
+       +   '</div>'
+       + '</div>';
+}
+
+/* ============ 渲染：四象限主页 ============ */
+function renderGrid(){
+  var done = (ui.sub === 'done');
+  var html = '';
+  for(var q=0; q<4; q++){
+    var list = inQuad(q, done);
+    var shown = list.slice(0, SHOW_MAX);
+    var body;
+    if(list.length === 0){
+      body = '<div class="q-empty">'+(done?'还没有完成的':'暂无待办')+'</div>';
+    }else{
+      body = shown.map(itemHTML).join('');
+    }
+    var foot = list.length > SHOW_MAX
+      ? '<div class="q-foot" data-act="open" data-q="'+q+'">查看全部 ('+list.length+')</div>'
+      : '';
+    html += '<div class="q">'
+          +   '<div class="q-head">'
+          +     '<span class="q-dot" style="background:'+QUADS[q].dot+'"></span>'
+          +     '<span class="q-title" data-act="open" data-q="'+q+'">'+QUADS[q].name
+          +       ' <span class="q-count">'+(list.length||'')+'</span></span>'
+          +     '<button class="q-add" data-act="add" data-q="'+q+'" aria-label="新建">＋</button>'
+          +   '</div>'
+          +   '<div class="q-list">'+body+'</div>'
+          +   foot
+          + '</div>';
+  }
+  document.getElementById('grid').innerHTML = html;
+}
+
+/* ============ 渲染：象限详情 ============ */
+function renderQuad(){
+  var q = ui.quad;
+  if(q === null) return;
+  var done = (ui.sub === 'done');
+  var list = inQuad(q, done);
+  document.getElementById('quadTitle').textContent =
+    QUADS[q].name + ' · ' + (done ? '已完成' : '待完成') + ' (' + list.length + ')';
+  document.getElementById('quadBody').innerHTML = list.length
+    ? list.map(itemHTML).join('')
+    : '<div class="holder" style="padding:70px 30px"><div class="big">'+(done?'🎉':'📝')+'</div>'
+      + '<p>'+(done?'这个象限还没有已完成的待办':'这个象限还没有待办')+'</p></div>';
+}
+
+/* ============ 渲染：总入口 ============ */
+function render(){
+  if(ui.tab === 'home') renderGrid();
+  if(ui.quad !== null) renderQuad();
+}
+
+/* ============ 编辑器 ============ */
+function openEditor(id, presetQuad){
+  editingId = id || null;
+  var t = id ? db.todos.filter(function(x){return x.id===id;})[0] : null;
+
+  document.getElementById('editTitle').textContent = t ? '编辑待办' : '新建待办';
+
+  if(t){
+    draft.imp = !!t.important;
+    draft.urg = !!t.urgent;
+    document.getElementById('fContent').value = t.content || '';
+    document.getElementById('fDue').value = t.dueAt ? toDateInput(t.dueAt) : '';
+    document.getElementById('fRemind').value = t.remindAt ? toLocalInput(t.remindAt) : '';
+  }else{
+    var pq = (presetQuad === undefined || presetQuad === null) ? 0 : presetQuad;
+    draft.imp = QUADS[pq].imp;
+    draft.urg = QUADS[pq].urg;
+    document.getElementById('fContent').value = '';
+    document.getElementById('fDue').value = '';
+    document.getElementById('fRemind').value = '';
+  }
+  syncChips();
+  document.getElementById('editDeleteRow').classList.toggle('hidden', !t);
+  document.getElementById('maskEdit').classList.remove('hidden');
+  if(!t) setTimeout(function(){ document.getElementById('fContent').focus(); }, 120);
+}
+function syncChips(){
+  document.getElementById('chipImp').classList.toggle('on', draft.imp);
+  document.getElementById('chipUrg').classList.toggle('on', draft.urg);
+}
+function toDateInput(ts){
+  var d = new Date(ts);
+  return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+}
+function toLocalInput(ts){
+  var d = new Date(ts);
+  return toDateInput(ts)+'T'+p2(d.getHours())+':'+p2(d.getMinutes());
+}
+function p2(n){ return (n<10?'0':'')+n; }
+
+function saveEditor(){
+  var content = document.getElementById('fContent').value.trim();
+  if(!content){ document.getElementById('fContent').focus(); return; }
+
+  var dueVal = document.getElementById('fDue').value;
+  var remVal = document.getElementById('fRemind').value;
+  var dueAt  = dueVal ? new Date(dueVal+'T23:59:59').getTime() : null;
+  var remind = remVal ? new Date(remVal).getTime() : null;
+
+  if(editingId){
+    db.todos.forEach(function(t){
+      if(t.id === editingId){
+        t.content   = content;
+        t.important = draft.imp;
+        t.urgent    = draft.urg;
+        t.dueAt     = dueAt;
+        t.remindAt  = remind;
+      }
+    });
+  }else{
+    db.todos.push({
+      id: uid(), content: content,
+      createdAt: Date.now(), dueAt: dueAt, remindAt: remind,
+      done: false, doneAt: null,
+      important: draft.imp, urgent: draft.urg,
+      deleted: false,
+      recurring: null, intervalDays: null, lastResetAt: null
+    });
+  }
+  save(); closeEditor(); render();
+}
+function closeEditor(){
+  document.getElementById('maskEdit').classList.add('hidden');
+  editingId = null;
+}
+
+/* ============ 事件 ============ */
+function findTodo(id){
+  return db.todos.filter(function(t){ return t.id===id; })[0];
+}
+function toggleDone(id){
+  var t = findTodo(id);
+  if(!t) return;
+  t.done = !t.done;
+  t.doneAt = t.done ? Date.now() : null;
+  save(); render();
+}
+
+document.addEventListener('click', function(ev){
+  var el = ev.target.closest('[data-act]');
+  if(el){
+    var act = el.getAttribute('data-act');
+    if(act === 'toggle'){ 
+      var it = el.closest('.item');
+      if(it) toggleDone(it.getAttribute('data-id'));
+      return;
+    }
+    if(act === 'edit'){
+      var it2 = el.closest('.item');
+      if(it2) openEditor(it2.getAttribute('data-id'));
+      return;
+    }
+    if(act === 'add'){
+      openEditor(null, parseInt(el.getAttribute('data-q'),10));
+      return;
+    }
+    if(act === 'open'){
+      ui.quad = parseInt(el.getAttribute('data-q'),10);
+      document.getElementById('screenQuad').classList.remove('hidden');
+      renderQuad();
+      return;
+    }
+  }
+  var cl = ev.target.closest('[data-close]');
+  if(cl){
+    document.getElementById(cl.getAttribute('data-close')).classList.add('hidden');
+    if(cl.getAttribute('data-close') === 'screenQuad') ui.quad = null;
+    return;
+  }
+  var tb = ev.target.closest('[data-tab]');
+  if(tb){
+    switchTab(tb.getAttribute('data-tab'));
+    return;
+  }
+  var sb = ev.target.closest('[data-sub]');
+  if(sb){
+    ui.sub = sb.getAttribute('data-sub');
+    document.querySelectorAll('#segHome button').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('data-sub') === ui.sub);
+    });
+    render();
+    return;
+  }
+});
+
+function switchTab(tab){
+  ui.tab = tab;
+  ['home','recur','stats'].forEach(function(t){
+    document.getElementById('page-'+t).classList.toggle('hidden', t !== tab);
+  });
+  document.querySelectorAll('#tabbar button').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-tab') === tab);
+  });
+  document.getElementById('btnMenu').classList.toggle('hidden', tab !== 'home');
+  document.getElementById('pageTitle').textContent =
+    tab === 'home' ? '待办' : tab === 'recur' ? '周期待办' : '数据统计';
+}
+
+/* 编辑弹层 */
+document.getElementById('chipImp').addEventListener('click', function(){ draft.imp = !draft.imp; syncChips(); });
+document.getElementById('chipUrg').addEventListener('click', function(){ draft.urg = !draft.urg; syncChips(); });
+document.getElementById('btnCancel').addEventListener('click', closeEditor);
+document.getElementById('btnSave').addEventListener('click', saveEditor);
+document.getElementById('btnDelete').addEventListener('click', function(){
+  if(!editingId) return;
+  if(!confirm('确定删除这条待办？')) return;
+  db.todos.forEach(function(t){ if(t.id === editingId) t.deleted = true; });
+  save(); closeEditor(); render();
+});
+document.getElementById('maskEdit').addEventListener('click', function(ev){
+  if(ev.target === this) closeEditor();
+});
+document.getElementById('quadAdd').addEventListener('click', function(){
+  if(ui.quad !== null) openEditor(null, ui.quad);
+});
+
+/* 数据管理 */
+document.getElementById('btnMenu').addEventListener('click', function(){
+  document.getElementById('screenMenu').classList.remove('hidden');
+});
+document.getElementById('btnExport').addEventListener('click', function(){
+  var blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '待办备份-'+toDateInput(Date.now())+'.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  alert('已导出。请把文件保存到网盘或发给自己。');
+});
+document.getElementById('btnImport').addEventListener('click', function(){
+  document.getElementById('fileImport').click();
+});
+document.getElementById('fileImport').addEventListener('change', function(ev){
+  var f = ev.target.files[0];
+  if(!f) return;
+  var r = new FileReader();
+  r.onload = function(){
+    try{
+      var o = JSON.parse(r.result);
+      if(!o || !Array.isArray(o.todos)) throw new Error('格式不对');
+      if(!confirm('导入将覆盖当前 '+active().length+' 条待办，继续？')) return;
+      db = o; save(); render();
+      alert('导入成功，共 '+active().length+' 条待办。');
+      document.getElementById('screenMenu').classList.add('hidden');
+    }catch(e){ alert('导入失败：'+e.message); }
+  };
+  r.readAsText(f);
+  ev.target.value = '';
+});
+document.getElementById('btnCopy').addEventListener('click', function(){
+  var txt = JSON.stringify(db);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ alert('已复制到剪贴板，粘贴到备忘录即可保存。'); },
+      function(){ prompt('复制下面的内容保存：', txt); });
+  }else{
+    prompt('复制下面的内容保存：', txt);
+  }
+});
+document.getElementById('btnClear').addEventListener('click', function(){
+  if(!confirm('将删除全部待办，且无法撤销。确定？')) return;
+  if(!confirm('真的确定吗？建议先导出备份。')) return;
+  db = { version:1, todos:[] };
+  save(); render();
+  document.getElementById('screenMenu').classList.add('hidden');
+});
+
+/* ============ 启动 ============ */
+load();
+render();
+switchTab('home');
+})();
+
+/* 注册 Service Worker：实现「断网也能打开」。
+   只在 http/https 下注册；用本地文件（file://）打开时跳过。 */
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
