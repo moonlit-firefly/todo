@@ -621,44 +621,68 @@ function recurText(t){
   if(t.recurring === 'interval') return '每 ' + (Math.max(1, parseInt(t.intervalDays,10)||1)) + ' 天刷新';
   return '长期';
 }
-function nextResetText(t){
-  if(!t.done || !isRecur(t) || t.recurring === 'someday') return null;
+
+/* 把毫秒差格式化成「到小时」的倒计时 */
+function countdown(ms){
+  var m = Math.floor(ms / 60000);
+  if(m < 1)  return '不到 1 分钟';
+  if(m < 60) return m + ' 分钟';
+  var h = Math.floor(m / 60);
+  if(h < 24) return h + ' 小时';
+  var d = Math.floor(h / 24), rh = h % 24;
+  return d + ' 天' + (rh ? ' ' + rh + ' 小时' : '');
+}
+
+/* 距离下一次刷新还有多久。日度与周期都显示，不再只限于已完成状态 */
+function refreshCountdown(t){
+  if(!isRecur(t) || t.recurring === 'someday') return null;
   var now = Date.now(), next;
   if(t.recurring === 'daily'){
-    next = dayStart(now) + DAY;              // 下一个凌晨 4 点
+    next = dayStart(now) + DAY;                    // 下一个凌晨 4 点
   }else{
-    var n = Math.max(1, parseInt(t.intervalDays,10)||1);
-    next = dayStart(t.lastResetAt || now) + n * DAY;
-    while(next <= now) next += n * DAY;      // 兜底：万一结算还没跑
+    var n = Math.max(1, parseInt(t.intervalDays,10) || 1);
+    next = dayStart(t.lastResetAt || t.createdAt || now) + n * DAY;
+    while(next <= now) next += n * DAY;            // 兜底：万一结算还没跑
   }
-  var diff = next - now;
-  if(diff <= 0) return '即将刷新';
-  var h = Math.ceil(diff / 3600000);
-  if(h <= 36) return h + ' 小时后刷新';
-  return Math.ceil(diff / DAY) + ' 天后刷新';
+  var left = next - now;
+  if(left <= 0) return '即将刷新';
+  return '还剩 ' + countdown(left);
 }
+
+/* 截止倒计时。
+   终点取「到期日的次日凌晨 4 点」—— 与统计里的逾期判定完全同一口径，
+   否则会出现「界面说已逾期、统计却不计入」的矛盾。 */
 function dueText(t){
   if(!t.dueAt || isRecur(t)) return null;
-  var today = dayStart(Date.now());
-  var due   = dayStart(t.dueAt);
-  var diff  = Math.round((due - today)/DAY);
-  var label = diff===0 ? '今天' : diff===1 ? '明天' : diff===-1 ? '昨天'
-            : (due<today ? '逾期' : mmdd(t.dueAt));
-  var cls = due<today ? 'over' : (diff<=1 ? 'soon' : '');
-  return {label:'⏰ '+label, cls:cls};
+  var now    = Date.now();
+  var today  = dayStart(now);
+  var dueDay = dayStart(t.dueAt);
+  var diff   = Math.round((dueDay - today) / DAY);
+  var day    = diff === 0 ? '今天' : diff === 1 ? '明天' : mmdd(t.dueAt);
+
+  if(t.done) return { label:'⏰ ' + day, cls:'' };    // 已完成只留日期，倒计时没意义
+
+  var left = (dueDay + DAY) - now;
+  if(left <= 0){
+    var over = -left;
+    return { label: over < 60000 ? '⏰ 已逾期' : '⏰ 已逾期 ' + countdown(over), cls:'over' };
+  }
+  return { label:'⏰ ' + day + ' · 还剩 ' + countdown(left), cls: diff <= 1 ? 'soon' : '' };
 }
 
 /* ============ 渲染：条目 ============ */
 function itemHTML(t){
   var metas = [];
+
   var d = dueText(t);
   if(d) metas.push('<span class="'+d.cls+'">'+esc(d.label)+'</span>');
+
   var r = recurText(t);
-  if(r) metas.push('<span>'+esc(r)+'</span>');
-  if(t.done){
-    var n = nextResetText(t);
-    if(n) metas.push('<span>'+esc(n)+'</span>');
+  if(r){
+    var cd = refreshCountdown(t);
+    metas.push('<span>'+esc(cd ? r + ' · ' + cd : r)+'</span>');
   }
+
   var meta = metas.length ? '<div class="meta">'+metas.join('')+'</div>' : '';
 
   return '<div class="item'+(t.done?' done':'')+'" data-id="'+t.id+'">'
