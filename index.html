@@ -26,14 +26,19 @@ body{
   background:var(--bg);color:var(--text);
   font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
   display:flex;flex-direction:column;
-  height:100vh;height:100dvh;overflow:hidden;touch-action:manipulation;
+  height:100vh;
+  height:100dvh;
+  height:var(--app-h,100dvh);   /* JS 实测优先，兜底 dvh，再兜底 vh */
+  overflow:hidden;touch-action:manipulation;
 }
 button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:pointer}
 .hidden{display:none!important}
 input,textarea{font:inherit;color:var(--text)}
 
 /* ---------- 顶栏 ---------- */
-.topbar{display:flex;align-items:center;padding:calc(env(safe-area-inset-top,0px) + 12px) 14px 6px}
+/* 顶部不再叠加 safe-area：独立窗口下系统已为状态栏预留空间，
+   再叠一次就会出现一条空白带。底部仍保留，避免被手势条压住。 */
+.topbar{display:flex;align-items:center;padding:10px 14px 5px}
 .topbar h1{font-size:20px;margin:0;flex:1;font-weight:650;letter-spacing:.2px}
 .iconbtn{width:38px;height:38px;border-radius:50%;font-size:19px;color:var(--muted);display:grid;place-items:center}
 .iconbtn:active{background:var(--line)}
@@ -74,6 +79,7 @@ input,textarea{font:inherit;color:var(--text)}
 .item .meta{font-size:11px;color:var(--muted);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap}
 .item .meta .over{color:var(--danger)}
 .item .meta .soon{color:var(--q1)}
+.item .meta .auto{color:var(--q1);font-weight:600}
 
 /* ---------- 周期待办列表 ---------- */
 .rlist{background:var(--card);border-radius:var(--r);margin:0 14px;overflow:hidden}
@@ -236,6 +242,7 @@ input,textarea{font:inherit;color:var(--text)}
       <button id="btnImport">导入备份（JSON）</button>
       <button id="btnCopy">复制备份到剪贴板</button>
       <button id="btnSnapshots">从自动快照恢复</button>
+      <button id="btnDiag">显示屏幕诊断信息</button>
       <button class="danger" id="btnClear">清空全部数据</button>
     </div>
     <div id="snapBox" class="hidden" style="padding:14px">
@@ -291,11 +298,14 @@ input,textarea{font:inherit;color:var(--text)}
         <div class="chip" id="chipImp">重要</div>
         <div class="chip warn" id="chipUrg">紧急</div>
       </div>
+      <div class="hint hidden" id="autoUrgHint" style="margin-top:8px">
+        ⚡ 距离截止不足 24 小时，保存后会<b>自动按「紧急」处理</b>，出现在左上象限。把截止时间改远就会自动恢复。
+      </div>
     </div>
 
     <div class="field">
-      <label>截止日期（可留空）</label>
-      <input type="date" id="fDue">
+      <label>截止日期（可留空，可精确到分钟）</label>
+      <input type="datetime-local" id="fDue">
     </div>
 
     <div class="field">
@@ -549,10 +559,25 @@ function migrate(){
 /* ============ 工具 ============ */
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
+/* 距截止不足 24 小时 → 自动按「紧急」处理。
+   到期日当天（凌晨 4 点起）即满足，等价于「今天到期就变紧急」。
+   这是派生判断、不改数据 —— 把截止日期改远就会自动恢复。 */
+function autoUrgent(t){
+  if(t.done || !t.dueAt || isRecur(t)) return false;
+  return (t.dueAt - Date.now()) <= DAY;
+}
+function isUrgentNow(t){
+  return !!t.urgent || autoUrgent(t);
+}
+/* 用户自己没勾紧急、却被自动提上来的（只在界面上做提示用） */
+function autoUpgraded(t){
+  return !t.urgent && autoUrgent(t);
+}
 function quadOf(t){
-  if(t.important && t.urgent) return 0;
-  if(!t.important && t.urgent) return 1;
-  if(t.important && !t.urgent) return 2;
+  var urg = isUrgentNow(t);
+  if(t.important && urg) return 0;
+  if(!t.important && urg) return 1;
+  if(t.important && !urg) return 2;
   return 3;
 }
 function active(){ return db.todos.filter(function(t){ return !t.deleted; }); }
@@ -649,9 +674,8 @@ function refreshCountdown(t){
   return '还剩 ' + countdown(left);
 }
 
-/* 截止倒计时。
-   终点取「到期日的次日凌晨 4 点」—— 与统计里的逾期判定完全同一口径，
-   否则会出现「界面说已逾期、统计却不计入」的矛盾。 */
+/* 截止倒计时。截止时间精确到分钟，逾期判定直接用这个时刻，
+   与统计里的 overdue 使用同一个值，不会出现两边说法不一致。 */
 function dueText(t){
   if(!t.dueAt || isRecur(t)) return null;
   var now    = Date.now();
@@ -659,15 +683,20 @@ function dueText(t){
   var dueDay = dayStart(t.dueAt);
   var diff   = Math.round((dueDay - today) / DAY);
   var day    = diff === 0 ? '今天' : diff === 1 ? '明天' : mmdd(t.dueAt);
+  var dt     = new Date(t.dueAt);
+  var hm     = p2(dt.getHours()) + ':' + p2(dt.getMinutes());
+  var left   = t.dueAt - now;
 
-  if(t.done) return { label:'⏰ ' + day, cls:'' };    // 已完成只留日期，倒计时没意义
+  if(t.done) return { label:'⏰ ' + day + ' ' + hm, cls:'' };   // 已完成只留时间，倒计时没意义
 
-  var left = (dueDay + DAY) - now;
   if(left <= 0){
     var over = -left;
     return { label: over < 60000 ? '⏰ 已逾期' : '⏰ 已逾期 ' + countdown(over), cls:'over' };
   }
-  return { label:'⏰ ' + day + ' · 还剩 ' + countdown(left), cls: diff <= 1 ? 'soon' : '' };
+  return {
+    label: '⏰ ' + day + ' ' + hm + ' · 还剩 ' + countdown(left),
+    cls: left <= DAY ? 'soon' : ''
+  };
 }
 
 /* ============ 渲染：条目 ============ */
@@ -676,6 +705,7 @@ function itemHTML(t){
 
   var d = dueText(t);
   if(d) metas.push('<span class="'+d.cls+'">'+esc(d.label)+'</span>');
+  if(autoUpgraded(t)) metas.push('<span class="auto">⚡ 自动紧急</span>');
 
   var r = recurText(t);
   if(r){
@@ -1370,6 +1400,12 @@ function openEditor(id, presetQuad, presetRecur){
 function syncChips(){
   document.getElementById('chipImp').classList.toggle('on', draft.imp);
   document.getElementById('chipUrg').classList.toggle('on', draft.urg);
+
+  /* 提示这条会不会被「到期自动紧急」接管 */
+  var dueVal = document.getElementById('fDue').value;
+  var willAuto = draft.recur === 'none' && !draft.urg && !!dueVal
+              && ((new Date(dueVal).getTime() - Date.now()) <= DAY);
+  document.getElementById('autoUrgHint').classList.toggle('hidden', !willAuto);
 }
 function syncRecurChips(){
   document.querySelectorAll('#recurChips .chip').forEach(function(c){
@@ -1394,7 +1430,7 @@ function saveEditor(){
 
   var dueVal = document.getElementById('fDue').value;
   var remVal = document.getElementById('fRemind').value;
-  var dueAt  = dueVal ? new Date(dueVal+'T23:59:59').getTime() : null;
+  var dueAt  = dueVal ? new Date(dueVal).getTime() : null;   // datetime-local → 本地时间，精确到分钟
   var remind = remVal ? new Date(remVal).getTime() : null;
 
   var recur = (draft.recur === 'none') ? null : draft.recur;
@@ -1524,6 +1560,8 @@ function switchTab(tab){
 /* 编辑弹层 */
 document.getElementById('chipImp').addEventListener('click', function(){ draft.imp = !draft.imp; syncChips(); });
 document.getElementById('chipUrg').addEventListener('click', function(){ draft.urg = !draft.urg; syncChips(); });
+document.getElementById('fDue').addEventListener('change', syncChips);
+document.getElementById('fDue').addEventListener('input', syncChips);
 document.getElementById('recurChips').addEventListener('click', function(ev){
   var c = ev.target.closest('[data-r]');
   if(!c) return;
@@ -1593,6 +1631,29 @@ document.getElementById('btnCopy').addEventListener('click', function(){
     prompt('复制下面的内容保存：', txt);
   }
 });
+/* 屏幕诊断：把结果发回来就能精确定位显示问题 */
+document.getElementById('btnDiag').addEventListener('click', function(){
+  var probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;top:0;left:0;width:1px;visibility:hidden;height:env(safe-area-inset-top,0px)';
+  document.body.appendChild(probe);
+  var insetTop = Math.round(probe.getBoundingClientRect().height);
+  probe.style.height = 'env(safe-area-inset-bottom,0px)';
+  var insetBottom = Math.round(probe.getBoundingClientRect().height);
+  probe.remove();
+
+  var bar = document.querySelector('.topbar');
+  var standalone = window.matchMedia ? window.matchMedia('(display-mode: standalone)').matches : false;
+  alert('【屏幕诊断】把这段发给我\n'
+    + 'innerHeight: ' + window.innerHeight + '\n'
+    + 'visualViewport: ' + (window.visualViewport ? Math.round(window.visualViewport.height) : '不支持') + '\n'
+    + 'screen.height: ' + (window.screen ? window.screen.height : '?') + '\n'
+    + 'body 实际高度: ' + Math.round(document.body.getBoundingClientRect().height) + '\n'
+    + '顶栏距屏幕顶: ' + (bar ? Math.round(bar.getBoundingClientRect().top) : '?') + '\n'
+    + '安全区 上/下: ' + insetTop + ' / ' + insetBottom + '\n'
+    + '独立窗口模式: ' + (standalone ? '是' : '否') + '\n'
+    + '设备像素比: ' + window.devicePixelRatio);
+});
+
 /* 自动快照：手动触发一次留档（清空、恢复之前用） */
 function pushSnapshot(){
   try{
@@ -1642,6 +1703,21 @@ document.getElementById('btnClear').addEventListener('click', function(){
   document.getElementById('screenMenu').classList.add('hidden');
   showToast('已清空（清空前存了快照，可从「从自动快照恢复」找回）');
 });
+
+/* ============ 视口高度 ============ */
+/* 部分手机浏览器对 100vh / 100dvh 的处理有偏差，用实测值兜住，
+   让页面正好铺满屏幕。键盘弹出时 innerHeight 会变小，加下限避免布局被压扁。 */
+function setAppHeight(){
+  var h = window.innerHeight || 0;
+  if(!h) return;
+  var floor = (window.screen && window.screen.height ? window.screen.height : h) * 0.6;
+  if(h < floor) return;
+  document.documentElement.style.setProperty('--app-h', Math.round(h) + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', function(){ setTimeout(setAppHeight, 150); });
+if(window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
 
 /* ============ 启动 ============ */
 load();
