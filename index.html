@@ -106,7 +106,9 @@ input,textarea{font:inherit;color:var(--text)}
 .hbar:last-child{margin-bottom:0}
 .hbar .lb{width:78px;flex:none;color:var(--muted);font-size:11.5px}
 .hbar .track{flex:1;height:15px;background:var(--bg);border-radius:8px;overflow:hidden}
-.hbar .fill{height:100%;border-radius:8px}
+/* display:block 不能省：.fill 是 .track 里的 span，不是 flex item，
+   行内元素会忽略 width/height，进度条会整条空掉（只留灰色槽）。 */
+.hbar .fill{display:block;height:100%;border-radius:8px}
 .hbar .num{width:62px;flex:none;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--muted)}
 .hours{display:flex;align-items:flex-end;gap:2px;height:66px}
 .hours div{flex:1;background:var(--accent);border-radius:2px 2px 0 0;opacity:.85}
@@ -261,7 +263,7 @@ input,textarea{font:inherit;color:var(--text)}
   <div class="screen-head">
     <button class="back" data-close="screenQuad">‹ 返回</button>
     <h2 id="quadTitle">象限</h2>
-    <button class="iconbtn" id="quadAdd" style="color:var(--accent)">＋</button>
+    <button class="iconbtn" id="quadAdd" style="color:var(--accent)" aria-label="新建待办">＋</button>
   </div>
   <div class="screen-body" id="quadBody"></div>
 </div>
@@ -381,6 +383,8 @@ function warn(msg, danger){
   el.className = 'warnbar' + (danger ? ' danger' : '');
   el.innerHTML = msg;
 }
+/* warnCorrupt 的文案与事实保持一致：原文写进了 CORRUPT_KEY，
+   刷新后 load() 会从这里重新挂出横幅，所以「下载原始数据」不会丢。 */
 function warnCorrupt(){
   var el = document.getElementById('corruptWarn');
   el.innerHTML = '⚠️ 数据读取失败，原始内容已保留，没有被覆盖。'
@@ -395,6 +399,8 @@ function warnCorrupt(){
     el.classList.add('hidden');
   };
 }
+
+var loadFailed = false;      // 本次是否因数据损坏而空表启动（决定能不能写快照）
 
 function load(){
   var raw = null, fromOld = false, parseFailed = false;
@@ -421,12 +427,22 @@ function load(){
 
     if(parseFailed){
       corruptRaw = raw;
+      loadFailed = true;
       try{ localStorage.setItem(CORRUPT_KEY, raw); }catch(e){}
       warnCorrupt();
     }else if(fromOld){
       save();                                       // 迁移到新键
       try{ localStorage.removeItem(OLD_KEY); }catch(e){}
     }
+  }
+
+  /* 第三步：上次会话留下的「损坏原文」如果还在，刷新后要把横幅和下载入口
+     重新挂出来。否则 save() 第一次覆写 KEY 之后，用户就再也拿不回原文了。 */
+  if(!parseFailed && !corruptRaw){
+    try{
+      var kept = localStorage.getItem(CORRUPT_KEY);
+      if(kept){ corruptRaw = kept; warnCorrupt(); }
+    }catch(e){}
   }
 
   if(!db.log) db.log = [];
@@ -448,7 +464,9 @@ function save(){
 /* 每天首次打开留一份快照，最多 3 份。
    顺序很重要：先写主数据（save 已在前），再写快照，空间不足时牺牲快照而不是主数据。 */
 function snapshot(){
-  if(!storageOK || saveFailed) return;
+  /* 因数据损坏而空表启动时绝不写快照：否则今天这份「空数据」会挤掉
+     快照环里最老的一份真快照，等于用损坏换掉了用户的备份。 */
+  if(!storageOK || saveFailed || loadFailed) return;
   try{
     var today = dayStart(Date.now());
     if(localStorage.getItem(SNAP_META) === String(today)) return;
@@ -466,6 +484,30 @@ function readSnapshots(){
   }catch(e){ return []; }
 }
 
+/* id 会被拼进 HTML 属性、也会参与查找比较，所以必须是「安全形状」。
+   只在导入处清理不够 —— localStorage 里的老数据同样要过这一关。
+   非字符串、含可疑字符、或重复的，一律换成新 id，并返回新旧对照表。 */
+function normalizeIds(todos, log){
+  var map = {}, seen = {};
+  (todos || []).forEach(function(t){
+    if(!t) return;
+    var raw = (typeof t.id === 'string' || typeof t.id === 'number') ? String(t.id) : '';
+    if(raw && /^[A-Za-z0-9_-]{1,64}$/.test(raw) && !seen[raw]){
+      seen[raw] = 1;
+      if(raw !== t.id) t.id = raw;          // 数字 id 统一成字符串
+    }else{
+      if(raw) map[raw] = null;              // 占位，下面统一分配
+      t.id = uid();
+      seen[t.id] = 1;
+      if(raw) map[raw] = t.id;
+    }
+  });
+  if(log && log.length){
+    log.forEach(function(e){ if(e && map[e.id]) e.id = map[e.id]; });
+  }
+  return map;
+}
+
 /* 导入前做一次轻量校验与归一化，避免脏数据把界面搞崩 */
 function normalizeImport(o){
   if(!o || !Array.isArray(o.todos)) throw new Error('缺少 todos 数组 —— 可能不是本应用的备份文件');
@@ -473,7 +515,7 @@ function normalizeImport(o){
     version: 2,
     todos: [],
     log: Array.isArray(o.log) ? o.log.filter(function(e){
-      return e && typeof e === 'object' && e.type && e.id && typeof e.at === 'number';
+      return e && typeof e === 'object' && e.type && typeof e.id === 'string' && typeof e.at === 'number';
     }) : []
   };
   o.todos.forEach(function(t){
@@ -481,7 +523,7 @@ function normalizeImport(o){
     var rec = (t.recurring === 'daily' || t.recurring === 'interval' || t.recurring === 'someday')
       ? t.recurring : null;
     out.todos.push({
-      id: t.id || uid(),
+      id: t.id,
       content: t.content,
       createdAt: typeof t.createdAt === 'number' ? t.createdAt : Date.now(),
       dueAt: typeof t.dueAt === 'number' ? t.dueAt : null,
@@ -498,6 +540,9 @@ function normalizeImport(o){
       lastDoneDay: typeof t.lastDoneDay === 'number' ? t.lastDoneDay : null
     });
   });
+  /* id 统一在这里规范化：非法或重复的换新 id，日志里的引用同步改写，
+     否则习惯的完成记录会全部对不上。 */
+  normalizeIds(out.todos, out.log);
   return out;
 }
 
@@ -525,6 +570,12 @@ function logEvent(type, t){
 function migrate(){
   var changed = false;
   db.log = db.log || [];
+
+  /* 0) id 规范化：localStorage 里的老数据、手改过的备份都可能带非法 id。
+     id 会拼进 HTML 属性，必须先过这一关，再谈别的迁移。 */
+  var beforeIds = db.todos.map(function(t){ return t && t.id; }).join('\u0001');
+  normalizeIds(db.todos, db.log);
+  if(db.todos.map(function(t){ return t && t.id; }).join('\u0001') !== beforeIds) changed = true;
 
   /* 1) v1 -> v2：从现有待办补一份初始日志 */
   if(db.version < 2){
@@ -558,6 +609,19 @@ function migrate(){
 
 /* ============ 工具 ============ */
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* 周期天数统一在这里夹紧 1..365。
+   只在编辑器里夹不够 —— 导入的数据可能带超大值，会让「每 N 天」形同不刷新。 */
+function intervalOf(t){
+  return Math.max(1, Math.min(365, parseInt(t.intervalDays, 10) || 1));
+}
+
+/* 是否已逾期：唯一口径 —— 精确截止时刻已过。
+   这里必须是唯一的判定入口：条目行的红字、统计页的「已逾期」tile、逾期率
+   全部调它，否则会出现「条目说逾期、统计说 0」的自相矛盾。 */
+function isOverdue(t){
+  return !t.done && !!t.dueAt && !isRecur(t) && t.dueAt < Date.now();
+}
 
 /* 距截止不足 24 小时 → 自动按「紧急」处理。
    到期日当天（凌晨 4 点起）即满足，等价于「今天到期就变紧急」。
@@ -623,7 +687,7 @@ function settle(){
     if(t.recurring === 'daily'){
       due = today > dayStart(anchor);          // 跨过凌晨 4 点即刷新
     }else if(t.recurring === 'interval'){
-      var n = Math.max(1, parseInt(t.intervalDays, 10) || 1);
+      var n = intervalOf(t);
       var passed = Math.round((today - dayStart(anchor)) / DAY);   // 按「天」计，同样以 4 点为界
       due = passed >= n;
     }
@@ -643,7 +707,7 @@ function settle(){
 function recurText(t){
   if(!isRecur(t)) return null;
   if(t.recurring === 'daily') return '每天刷新';
-  if(t.recurring === 'interval') return '每 ' + (Math.max(1, parseInt(t.intervalDays,10)||1)) + ' 天刷新';
+  if(t.recurring === 'interval') return '每 ' + intervalOf(t) + ' 天刷新';
   return '长期';
 }
 
@@ -665,7 +729,7 @@ function refreshCountdown(t){
   if(t.recurring === 'daily'){
     next = dayStart(now) + DAY;                    // 下一个凌晨 4 点
   }else{
-    var n = Math.max(1, parseInt(t.intervalDays,10) || 1);
+    var n = intervalOf(t);
     next = dayStart(t.lastResetAt || t.createdAt || now) + n * DAY;
     while(next <= now) next += n * DAY;            // 兜底：万一结算还没跑
   }
@@ -674,8 +738,8 @@ function refreshCountdown(t){
   return '还剩 ' + countdown(left);
 }
 
-/* 截止倒计时。截止时间精确到分钟，逾期判定直接用这个时刻，
-   与统计里的 overdue 使用同一个值，不会出现两边说法不一致。 */
+/* 截止倒计时。截止时间精确到分钟，逾期判定直接调 isOverdue，
+   与统计里的 overdue 用同一个函数，不会出现两边说法不一致。 */
 function dueText(t){
   if(!t.dueAt || isRecur(t)) return null;
   var now    = Date.now();
@@ -701,6 +765,9 @@ function dueText(t){
 
 /* ============ 渲染：条目 ============ */
 function itemHTML(t){
+  /* id 正常已由 normalizeIds 规范成安全形状；这里再兜一道，防止未来某条
+     绕过迁移的路径把非法 id 直接塞进属性。 */
+  var safeId = /^[A-Za-z0-9_-]{1,64}$/.test(String(t.id)) ? t.id : '';
   var metas = [];
 
   var d = dueText(t);
@@ -715,7 +782,7 @@ function itemHTML(t){
 
   var meta = metas.length ? '<div class="meta">'+metas.join('')+'</div>' : '';
 
-  return '<div class="item'+(t.done?' done':'')+'" data-id="'+t.id+'">'
+  return '<div class="item'+(t.done?' done':'')+'" data-id="'+safeId+'">'
        +   '<button class="check" data-act="toggle" aria-label="切换完成"></button>'
        +   '<div class="body" data-act="edit">'
        +     '<div class="txt">'+esc(t.content)+'</div>'
@@ -839,7 +906,7 @@ function dailyBuckets(days){
     var b = idx[d.day];
     if(!b) return;
     b.done++;
-    if(d.q != null) b.doneQ[d.q]++;
+    if(d.q != null && d.q >= 0 && d.q < 4) b.doneQ[d.q]++;
   });
 
   return out;
@@ -927,6 +994,21 @@ function habitStats(days, today, now){
       ? t.doneCount
       : doneSet((db.log||[]).filter(function(e){ return e.id === t.id; })).length;
     var st = streaks(t.id, doneByDay);
+    /* 顺序很重要：先用「日志可见最长」把观测值记下来，再去调整对外显示的 best。
+       反过来（先调整再观测）会把「真实最长」覆盖成调整后的值，越统计越大。 */
+    var off = (typeof t.streakOffset === 'number' && t.streakOffset > 0) ? t.streakOffset : 0;
+    /* 首次遇到「日志可见最长 > 已完成次数」这个矛盾，说明这份数据在日志被裁剪
+       之前就存在：两者之差就是被裁掉的历史。 */
+    if(!off && st.best > did){
+      off = st.best - did;
+      t.streakOffset = off;
+    }
+    t.streakSeen    = st.best;        // 观测：日志可见的最长连击
+    t.streakVisible = st.best;        // 观测：同上，供 computeStats 反推补偿量
+    if(off){
+      st.best = st.best + off;
+      st.cur  = Math.min(st.cur, st.best);
+    }
     return {
       content:t.content, recurring:t.recurring, intervalDays:t.intervalDays,
       expect:expect, did:did,
@@ -968,7 +1050,7 @@ function computeStats(days){
   var doneTodo    = todos.filter(function(t){ return !isRecur(t) &&  t.done; });
   s.quadTotal  = pendingTodo.length;
 
-  s.overdue = pendingTodo.filter(function(t){ return t.dueAt && dayStart(t.dueAt) < today; }).length;
+  s.overdue = pendingTodo.filter(isOverdue).length;
   s.overdueRate = pct(s.overdue, s.quadTotal);
 
   s.quadPending = [0,0,0,0];
@@ -993,7 +1075,7 @@ function computeStats(days){
   });
   /* 窗口内完成数的象限构成 */
   s.doneQ = [0,0,0,0];
-  doneEv.forEach(function(d){ if(d.q!=null) s.doneQ[d.q]++; });
+  doneEv.forEach(function(d){ if(d.q != null && d.q >= 0 && d.q < 4) s.doneQ[d.q]++; });
   s.qeShare = pct(s.doneQ[2], doneEv.length);
 
   /* --- 平均完成周期（按象限，只看非重复待办） --- */
@@ -1019,6 +1101,23 @@ function computeStats(days){
 
   /* --- 习惯（周期待办）：完全独立的一套指标 --- */
   s.habit = habitStats(days, today, now);
+
+  /* 把「已被日志裁掉的历史」补进持久化补偿量：
+       真实最长 best = 日志可见最长 st.best + streakOffset
+     所以 offset 只应增加 (best - st.best)，且只增不减。
+     放在这里而不是启动流程，是为了避免「纯打开应用」就写盘。 */
+  var streakDirty = false;
+  db.todos.forEach(function(t){
+    if(!t || typeof t.streakSeen !== 'number') return;
+    var off  = (typeof t.streakOffset === 'number' && t.streakOffset > 0) ? t.streakOffset : 0;
+    /* 真实最长 = streakSeen；日志可见最长 = streakVisible；
+       被裁掉的历史 = 两者之差。offset 只增不减，所以等价于取历史最大值。 */
+    var want = t.streakSeen - ((typeof t.streakVisible === 'number') ? t.streakVisible : 0);
+    if(want > off){ t.streakOffset = want; streakDirty = true; }
+    delete t.streakSeen;
+    delete t.streakVisible;
+  });
+  if(streakDirty && typeof save === 'function') save();
 
   /* --- 趋势文字 --- */
   s.trend = trendWord(s);
@@ -1126,7 +1225,8 @@ function cardQuadrant(s){
          +  '</div>';
   }
   return '<div class="card"><h3>四象限分布<span class="sub">仅四象限待办 · '+s.quadTotal+' 条</span></h3>'
-       + rows
+       + (s.quadTotal ? rows
+            : '<div class="empty-stat">当前没有未完成的四象限待办。<br>新建几条，这里就会显示精力分布。</div>')
        + '<div class="hint">理想状态是「重要不紧急」占多数。如果「重要且紧急」长期爆满，说明你在持续救火，缺少提前规划。</div>'
        + '</div>';
 }
@@ -1187,22 +1287,31 @@ function cardFlow(s){
       ? '在清旧账：窗口内完成比新增多 <b>'+(-s.net)+'</b> 条。'
       : '进出平衡：新增与完成持平。';
 
+  /* 新增为 0 时比值没有意义（s.ratio 是 999 哨兵），要跟概览 tile 一样显示 ∞，
+     不能把哨兵数字直接打出来。 */
+  var ratioTxt = s.created ? (s.ratio + '%') : (s.completed ? '∞' : '—');
+
   return '<div class="card"><h3>新增 vs 完成<span class="sub">看净流入</span></h3>'
        + (any ? chart + axisLabels(s.buckets, w) : '<div class="empty-stat">这段时间还没有记录</div>')
        + '<div class="legend"><span><i style="background:var(--accent)"></i>完成 '+s.completed+'</span>'
        +   '<span><i style="background:'+QCOLORS[3]+'"></i>新增 '+s.created+'</span></div>'
-       + (any ? '<div class="hint">'+verdict+' 完成/新增 比 = <b>'+s.ratio+'%</b>（超过 100% 说明在消化历史欠账）。</div>' : '')
+       + (any ? '<div class="hint">'+verdict+' 完成/新增 比 = <b>'+ratioTxt+'</b>（超过 100% 说明在消化历史欠账）。</div>' : '')
        + '</div>';
 }
 
 function cardDuration(s){
-  var rows = '', found = false;
+  var rows = '';
   var max = 0;
   s.durByQuad.forEach(function(d){ if(d && d.avg > max) max = d.avg; });
+  var found = s.durByQuad.some(function(d){ return !!d; });
+  if(!found){
+    return '<div class="card"><h3>平均完成周期<span class="sub">从创建到完成 · 按象限</span></h3>'
+         + '<div class="empty-stat">还没有已完成的非重复待办。<br>完成几条之后，这里会告诉你各类事要拖多久。</div>'
+         + '<div class="hint">对比「重要且紧急」和「重要不紧急」：前者明显更快是正常的；如果后者拖得特别久，说明长期事项一直被压后。</div></div>';
+  }
   for(var q=0;q<4;q++){
     var d = s.durByQuad[q];
     if(!d) { rows += '<div class="hbar"><span class="lb">'+SHORT_Q[q]+'</span><span class="track"></span><span class="num">—</span></div>'; continue; }
-    found = true;
     var p = max ? Math.round(d.avg/max*100) : 0;
     rows += '<div class="hbar"><span class="lb">'+SHORT_Q[q]+'</span>'
          +  '<span class="track"><span class="fill" style="width:'+p+'%;background:'+QCOLORS[q]+'"></span></span>'
@@ -1210,9 +1319,7 @@ function cardDuration(s){
   }
   return '<div class="card"><h3>平均完成周期<span class="sub">从创建到完成 · 按象限</span></h3>'
        + rows
-       + '<div class="hint">'+(found
-          ? '对比「重要且紧急」和「重要不紧急」：前者明显更快是正常的；如果后者拖得特别久，说明长期事项一直被压后。'
-          : '还没有已完成的非重复待办。')+'</div></div>';
+       + '<div class="hint">对比「重要且紧急」和「重要不紧急」：前者明显更快是正常的；如果后者拖得特别久，说明长期事项一直被压后。</div></div>';
 }
 
 function cardHours(s){
@@ -1373,7 +1480,9 @@ function openEditor(id, presetQuad, presetRecur){
     draft.recur = isRecur(t) ? t.recurring : 'none';
     draft.intervalDays = Math.max(1, parseInt(t.intervalDays,10) || 3);
     document.getElementById('fContent').value = t.content || '';
-    document.getElementById('fDue').value = t.dueAt ? toDateInput(t.dueAt) : '';
+    /* 必须用 toLocalInput：fDue 是 datetime-local，只给「YYYY-MM-DD」会被浏览器
+       判定为非法值并置空，用户一保存就把原有截止时间清掉了。 */
+    document.getElementById('fDue').value = t.dueAt ? toLocalInput(t.dueAt) : '';
     document.getElementById('fRemind').value = t.remindAt ? toLocalInput(t.remindAt) : '';
   }else{
     draft.recur = presetRecur || 'none';
@@ -1486,7 +1595,7 @@ function toggleDone(id){
   t.doneAt = t.done ? Date.now() : null;
   if(t.done){
     var day = dayStart(Date.now());
-    if(t.lastDoneDay !== day){          // 同一天反复勾选只计一次
+    if(t.lastDoneDay === null || day > t.lastDoneDay){   // 用 > 而不是 !==：系统时间回拨时不会重复计数
       t.doneCount = (t.doneCount || 0) + 1;
       t.lastDoneDay = day;
     }
@@ -1613,6 +1722,7 @@ document.getElementById('fileImport').addEventListener('change', function(ev){
     try{
       var o = normalizeImport(JSON.parse(r.result));
       if(!confirm('导入将覆盖当前 '+active().length+' 条待办，继续？')) return;
+      pushSnapshot();                  // 导入前也留一份后悔药，选错文件能退回来
       db = o;
       save(); migrate(); settle(); render();
       alert('导入成功，共 '+active().length+' 条待办。');
@@ -1663,35 +1773,42 @@ function pushSnapshot(){
     localStorage.setItem(SNAP_KEY, JSON.stringify(l));
   }catch(e){}
 }
-document.getElementById('btnSnapshots').addEventListener('click', function(){
+/* 快照列表渲染：用「时间戳」而不是数组下标做标识 ——
+   下标在 pushSnapshot 挤掉最老一份之后会整体错位，点第 1 条会恢复成另一份。 */
+function renderSnapList(){
   var list = readSnapshots();
   var box  = document.getElementById('snapBox');
   if(!list.length){
     document.getElementById('snapList').innerHTML =
       '<div class="empty-stat">还没有快照。<br>每天第一次打开应用会自动留一份，最多保留 3 份。</div>';
   }else{
-    document.getElementById('snapList').innerHTML = list.map(function(s, i){
+    document.getElementById('snapList').innerHTML = list.map(function(s){
       var d = new Date(s.at);
       var n = (s.todos || []).filter(function(t){ return !t.deleted; }).length;
       return '<div class="snap">'
            + '<div class="t">' + d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate()
            +   ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + '</div>'
            + '<div class="d">' + n + ' 条待办 · ' + ((s.log || []).length) + ' 条历史记录</div>'
-           + '<button data-snap="' + i + '">恢复这一份</button></div>';
+           + '<button data-snap-at="' + s.at + '">恢复这一份</button></div>';
     }).reverse().join('');
   }
-  box.classList.toggle('hidden');
+  return box;
+}
+document.getElementById('btnSnapshots').addEventListener('click', function(){
+  renderSnapList().classList.toggle('hidden');
 });
 document.getElementById('snapBox').addEventListener('click', function(ev){
-  var b = ev.target.closest('[data-snap]');
+  var b = ev.target.closest('[data-snap-at]');
   if(!b) return;
-  var s = readSnapshots()[parseInt(b.getAttribute('data-snap'), 10)];
+  var at = parseInt(b.getAttribute('data-snap-at'), 10);
+  var s = readSnapshots().filter(function(x){ return x.at === at; })[0];
   if(!s) return;
   if(!confirm('将把数据恢复到这份快照的状态。当前数据会先自动存一份，可以再恢复回来。继续？')) return;
   pushSnapshot();                       // 留一颗后悔药
   db = normalizeImport({ version:2, todos: s.todos || [], log: s.log || [] });
   save(); migrate(); settle(); render();
   document.getElementById('screenMenu').classList.add('hidden');
+  renderSnapList();                     // 环里的内容已经变了，重绘避免列表与下标错位
   var d = new Date(s.at);
   showToast('已恢复到 ' + (d.getMonth()+1) + '/' + d.getDate() + ' 的快照');
 });
@@ -1728,7 +1845,9 @@ render();
 switchTab('home');
 
 document.addEventListener('visibilitychange', function(){
-  if(!document.hidden && settle()) render();
+  /* 从后台切回时也补一次快照：iOS 从主屏图标恢复页面通常不会重新 load，
+     只靠启动那一次的话，「每天一份」会退化成「每次冷启动一份」。 */
+  if(!document.hidden){ snapshot(); if(settle()) render(); }
 });
 setInterval(function(){ if(settle()) render(); }, 60000);
 
