@@ -110,6 +110,19 @@ input,textarea{font:inherit;color:var(--text)}
    行内元素会忽略 width/height，进度条会整条空掉（只留灰色槽）。 */
 .hbar .fill{display:block;height:100%;border-radius:8px}
 .hbar .num{width:62px;flex:none;text-align:right;font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--muted)}
+
+/* ---------- 事件 ---------- */
+.ev-item{display:flex;align-items:center;gap:12px}
+.ev-main{flex:1;min-width:0}
+.ev-name{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev-sub{font-size:11.5px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev-count{flex:none;text-align:center;min-width:46px}
+.ev-count b{display:block;font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--accent)}
+.ev-count span{font-size:10.5px;color:var(--muted)}
+.ev-plus{flex:none;width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;
+  font-size:23px;font-weight:300;line-height:1;display:grid;place-items:center}
+.ev-plus:active{opacity:.7}
+.ev-today{color:var(--accent);font-weight:600}
 .hours{display:flex;align-items:flex-end;gap:2px;height:66px}
 .hours div{flex:1;background:var(--accent);border-radius:2px 2px 0 0;opacity:.85}
 .axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-top:5px}
@@ -183,6 +196,16 @@ input,textarea{font:inherit;color:var(--text)}
 @media (prefers-color-scheme:dark){.toast{background:#2c2c2e}}
 .toast .msg{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .toast button{color:#0a84ff;font-weight:600;font-size:14px;flex:none}
+
+/* ---------- 确认弹窗 ---------- */
+.cfm-mask{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:300;display:flex;align-items:center;justify-content:center;padding:0 28px}
+.cfm{background:var(--card);border-radius:15px;width:100%;max-width:340px;overflow:hidden;text-align:center}
+.cfm h3{margin:0;padding:19px 18px 4px;font-size:16.5px;font-weight:650}
+.cfm p{margin:0;padding:0 18px 17px;font-size:13px;color:var(--muted);line-height:1.6}
+.cfm-row{display:flex;border-top:1px solid var(--line)}
+.cfm-row button{flex:1;padding:13px 0;font-size:16px;color:var(--accent)}
+.cfm-row button + button{border-left:1px solid var(--line)}
+.cfm-row button.danger{color:var(--danger);font-weight:600}
 .snap{margin-bottom:10px;padding:12px 14px;background:var(--bg);border-radius:10px}
 .snap .t{font-size:13.5px;font-weight:600;margin-bottom:3px}
 .snap .d{font-size:11.5px;color:var(--muted);margin-bottom:9px}
@@ -194,6 +217,7 @@ input,textarea{font:inherit;color:var(--text)}
 <div class="topbar">
   <h1 id="pageTitle">佳木的待办助手</h1>
   <button class="iconbtn hidden" id="btnRecurAdd" aria-label="新建周期待办">＋</button>
+  <button class="iconbtn hidden" id="btnEventAdd" aria-label="新建事件">＋</button>
   <button class="iconbtn" id="btnMenu" aria-label="数据管理">⋯</button>
 </div>
 
@@ -229,7 +253,20 @@ input,textarea{font:inherit;color:var(--text)}
     <button data-days="30">近 30 天</button>
     <button data-days="90">近 90 天</button>
   </div>
+  <div class="seg" id="segStats">
+    <button data-stats="quad" class="on">四象限</button>
+    <button data-stats="habit">习惯</button>
+    <button data-stats="event">事件</button>
+  </div>
   <div class="scrollarea" id="statsBody"></div>
+</div>
+
+<!-- ========== 事件 ========== -->
+<div class="page hidden" id="page-event">
+  <div class="scrollarea" id="eventScroll">
+    <div class="rlist" id="eventList"></div>
+    <div class="r-empty hidden" id="eventEmpty"></div>
+  </div>
 </div>
 
 <!-- ========== 数据管理菜单 ========== -->
@@ -325,16 +362,53 @@ input,textarea{font:inherit;color:var(--text)}
   </div>
 </div>
 
+<!-- ========== 事件编辑弹层 ========== -->
+<div class="mask hidden" id="maskEvent">
+  <div class="sheet" id="sheetEvent">
+    <div class="sheet-grip"></div>
+    <h2 id="eventEditTitle">新建事件</h2>
+
+    <div class="field">
+      <label>事件名称</label>
+      <textarea id="fEventName" placeholder="要记录的事情？例如「游泳」「跑步」"></textarea>
+    </div>
+    <div class="hint" style="margin:-6px 0 14px">
+      事件不追求「完成」，只累计次数：每点一次 <b>＋</b> 记 1 次，并自动记下发生时间。
+    </div>
+
+    <div class="sheet-actions">
+      <button class="btn ghost" id="btnEventCancel">取消</button>
+      <button class="btn primary" id="btnEventSave">保存</button>
+    </div>
+    <div class="sheet-actions hidden" id="eventDeleteRow">
+      <button class="btn danger" id="btnEventDelete">删除这个事件</button>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="fileImport" accept=".json,application/json" class="hidden">
 
 <!-- ========== 底部标签栏 ========== -->
 <nav class="tabbar" id="tabbar">
   <button data-tab="home" class="on"><span class="ic">☑</span>主页</button>
   <button data-tab="recur"><span class="ic">🔄</span>周期待办</button>
+  <button data-tab="event"><span class="ic">🏊</span>事件</button>
   <button data-tab="stats"><span class="ic">📊</span>数据统计</button>
 </nav>
 
 <div id="toast" class="toast hidden"><span class="msg" id="toastMsg"></span><button id="toastAct" class="hidden">撤销</button></div>
+
+<!-- 通用确认弹窗（比 confirm 更适合移动端，能显示两行说明） -->
+<div id="cfmMask" class="cfm-mask hidden">
+  <div class="cfm">
+    <h3 id="cfmTitle"></h3>
+    <p id="cfmText"></p>
+    <div class="cfm-row">
+      <button id="cfmNo">取消</button>
+      <button id="cfmYes" class="danger">确定</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -368,10 +442,12 @@ var RTYPES = {
 };
 
 /* ============ 状态 ============ */
-var db = { version:2, todos:[], log:[] };
-var ui = { tab:'home', sub:'pending', quad:null, rtype:'daily', days:7 };
+/* events 从 v10 起存在；老数据可能只有 todos/log，读时补空表 */
+var db = { version:2, todos:[], log:[], events:[], eventsSeeded:false };
+var ui = { tab:'home', sub:'pending', quad:null, rtype:'daily', days:7, stats:'quad' };
 var storageOK = true;
 var editingId = null;
+var editingEventId = null;
 var draft = { imp:true, urg:true, recur:'none', intervalDays:3 };
 
 /* ============ 存储 ============ */
@@ -446,6 +522,7 @@ function load(){
   }
 
   if(!db.log) db.log = [];
+  if(!Array.isArray(db.events)) db.events = [];
 }
 
 function save(){
@@ -487,7 +564,7 @@ function readSnapshots(){
 /* id 会被拼进 HTML 属性、也会参与查找比较，所以必须是「安全形状」。
    只在导入处清理不够 —— localStorage 里的老数据同样要过这一关。
    非字符串、含可疑字符、或重复的，一律换成新 id，并返回新旧对照表。 */
-function normalizeIds(todos, log){
+function normalizeIds(todos, log, filter){
   var map = {}, seen = {};
   (todos || []).forEach(function(t){
     if(!t) return;
@@ -503,7 +580,11 @@ function normalizeIds(todos, log){
     }
   });
   if(log && log.length){
-    log.forEach(function(e){ if(e && map[e.id]) e.id = map[e.id]; });
+    log.forEach(function(e){
+      if(!e || !map[e.id]) return;
+      if(filter && !filter(e)) return;      // 只改本类条目的引用
+      e.id = map[e.id];
+    });
   }
   return map;
 }
@@ -543,7 +624,56 @@ function normalizeImport(o){
   /* id 统一在这里规范化：非法或重复的换新 id，日志里的引用同步改写，
      否则习惯的完成记录会全部对不上。 */
   normalizeIds(out.todos, out.log);
+  /* 事件表：导入旧备份（那时还没有事件功能）时为 undefined，补空表 */
+  out.events = [];
+  out.eventsSeeded = true;      // 导入的备份已定型，不再补默认「游泳」
+  (Array.isArray(o.events) ? o.events : []).forEach(function(e){
+    if(!e || typeof e !== 'object') return;
+    var nm = (typeof e.name === 'string' && e.name.trim()) ? e.name.trim().slice(0, 40) : null;
+    if(!nm) return;
+    out.events.push({
+      id: e.id,
+      name: nm,
+      createdAt: typeof e.createdAt === 'number' ? e.createdAt : Date.now(),
+      deleted: !!e.deleted,
+      count: (typeof e.count === 'number' && e.count >= 0) ? Math.floor(e.count) : 0
+    });
+  });
+  normalizeIds(out.events, out.log);
   return out;
+}
+
+/* ============ 事件：计数式记录 ============ */
+/* 与「事项」「习惯」并列的第三类：不追求完成，只累计次数。
+   每点一次加号 = 计数 +1，并在日志里追加一条 bump 记录（含精确时间）。 */
+function activeEvents(){
+  return (db.events || []).filter(function(e){ return e && !e.deleted; });
+}
+function findEvent(id){
+  return (db.events || []).filter(function(e){ return e && e.id === id; })[0];
+}
+function logBump(e, at){
+  if(!db.log) db.log = [];
+  db.log.push({ at: at || Date.now(), type: 'bump', id: e.id, recur: null });
+  if(db.log.length > LOG_MAX) db.log = db.log.slice(-Math.round(LOG_MAX * 0.8));
+}
+function bumpEvent(id){
+  var e = findEvent(id);
+  if(!e) return;
+  var now = Date.now();
+  e.count = (typeof e.count === 'number' ? e.count : 0) + 1;
+  e.lastAt = now;
+  logBump(e, now);
+  save();
+  renderEvents();
+  showToast('「' + e.name + '」已记为第 ' + e.count + ' 次', '撤销', function(){
+    e.count = Math.max(0, e.count - 1);
+    /* 撤销时把刚写进去的那条 bump 摘掉，保持日志与计数一致 */
+    for(var i = db.log.length - 1; i >= 0; i--){
+      if(db.log[i].type === 'bump' && db.log[i].id === e.id){ db.log.splice(i, 1); break; }
+    }
+    save(); renderEvents();
+  });
 }
 
 /* 下载文本为文件 */
@@ -574,8 +704,22 @@ function migrate(){
   /* 0) id 规范化：localStorage 里的老数据、手改过的备份都可能带非法 id。
      id 会拼进 HTML 属性，必须先过这一关，再谈别的迁移。 */
   var beforeIds = db.todos.map(function(t){ return t && t.id; }).join('\u0001');
-  normalizeIds(db.todos, db.log);
+  normalizeIds(db.todos, db.log, function(e){ return !e.recur; });   // 周期事件的 id 来自习惯表，不在此列
   if(db.todos.map(function(t){ return t && t.id; }).join('\u0001') !== beforeIds) changed = true;
+
+  /* 0b) 事件表：同样先规范 id，再补默认事件 */
+  if(!Array.isArray(db.events)){ db.events = []; changed = true; }
+  var beforeEv = db.events.map(function(e){ return e && e.id; }).join('\u0001');
+  normalizeIds(db.events, db.log);
+  if(db.events.map(function(e){ return e && e.id; }).join('\u0001') !== beforeEv) changed = true;
+  if(!db.eventsSeeded){
+    /* 只在第一次给默认事件。用户删掉「游泳」后不会再自己冒出来 */
+    if(!db.events.length){
+      db.events.push({ id: uid(), name: '游泳', createdAt: Date.now(), deleted: false, count: 0 });
+    }
+    db.eventsSeeded = true;
+    changed = true;
+  }
 
   /* 1) v1 -> v2：从现有待办补一份初始日志 */
   if(db.version < 2){
@@ -861,6 +1005,63 @@ function renderRecur(){
   });
 }
 
+/* ============ 渲染：事件 ============ */
+/* 一个事件一行：名字 + 累计次数 + 今天次数 + 加号。
+   加号只做一件事 —— 记一次，并写下时间。 */
+function eventItemHTML(e){
+  var now = Date.now();
+  var today = dayStart(now);
+  var todayN = 0, lastAt = 0, total = (typeof e.count === 'number') ? e.count : 0;
+  (db.log || []).forEach(function(x){
+    if(x.type !== 'bump' || x.id !== e.id) return;
+    if(x.at > lastAt) lastAt = x.at;
+    if(dayStart(x.at) === today) todayN++;
+  });
+
+  var when;
+  if(!lastAt){
+    when = '还没有记录，点右边 ＋ 记第一次';
+  }else{
+    var d = new Date(lastAt);
+    var sameDay = dayStart(lastAt) === today;
+    when = '最近一次 ' + (sameDay ? '今天 ' : mmdd(lastAt) + ' ')
+         + p2(d.getHours()) + ':' + p2(d.getMinutes())
+         + (sameDay ? '（' + countdown(now - lastAt) + '前）' : '');
+  }
+
+  return '<div class="item" data-id="' + e.id + '">'
+       +   '<div class="ev-main" data-act="edit-event">'
+       +     '<div class="ev-name">' + esc(e.name) + '</div>'
+       +     '<div class="ev-sub">' + esc(when) + '</div>'
+       +   '</div>'
+       +   '<div class="ev-count"><b>' + total + '</b><span>'
+       +     (todayN ? '今天 ' + todayN + ' 次' : '次') + '</span></div>'
+       +   '<button class="ev-plus" data-act="bump-event" data-id="' + e.id + '" aria-label="给'
+       +     esc(e.name) + '加一次">＋</button>'
+       + '</div>';
+}
+
+function renderEvents(){
+  var list = activeEvents();
+  var box  = document.getElementById('eventList');
+  var empty = document.getElementById('eventEmpty');
+
+  if(!list.length){
+    box.classList.add('hidden');
+    box.innerHTML = '';
+    empty.classList.remove('hidden');
+    empty.innerHTML = '<div class="big">🏊</div><b>还没有事件</b><br>'
+      + '事件用来记录「做了几次」，比如游泳、跑步、请客。<br>'
+      + '新建后每点一次 ＋ 就记 1 次，并自动记下时间。'
+      + '<br><br>点右上角 <b>＋</b> 新建';
+  }else{
+    empty.classList.add('hidden');
+    empty.innerHTML = '';
+    box.classList.remove('hidden');
+    box.innerHTML = list.map(eventItemHTML).join('');
+  }
+}
+
 /* ============================================================
    数据统计
    ============================================================ */
@@ -1122,7 +1323,112 @@ function computeStats(days){
   /* --- 趋势文字 --- */
   s.trend = trendWord(s);
 
+  /* --- 事件：与事项、习惯并列的第三套指标 --- */
+  s.event = eventStats(days, today, now);
+
   return s;
+}
+
+/* ============================================================
+   事件统计
+   ============================================================ */
+/* 事件只累计次数，所以有意义的指标是「频率」和「节奏」：
+   做了多少次、多久做一次、什么时候做、哪个在涨。
+   与事项/习惯完全分开，绝不混进口径。 */
+function eventStats(days, today, now){
+  var from = today - (days - 1) * DAY;
+  var evs = activeEvents();
+  var out = { days:days, total:0, allTime:0, activeDays:0, perDay:0, perWeek:0,
+              bestDay:null, topEvent:null, rising:null, rest:null,
+              buziest:null, hours:new Array(24).fill(0), dayDone:{}, items:[], all:[], span:null };
+
+  /* 日志按 id 归集。注意：count 是累计真值，日志只用来算「窗口内」的节奏 */
+  var byId = {}, dayset = {};
+  (db.log || []).forEach(function(e){
+    if(e.type !== 'bump') return;
+    if(!byId[e.id]) byId[e.id] = [];
+    byId[e.id].push(e.at);
+    var d = dayStart(e.at);
+    dayset[d] = (dayset[d] || 0) + 1;
+    if(e.at >= from){
+      out.total++;
+      out.dayDone[d] = (out.dayDone[d] || 0) + 1;
+      out.hours[new Date(e.at).getHours()]++;
+    }
+  });
+
+  /* 全部事件（含已删）的累计次数 —— 这是不会被日志裁剪影响的总量 */
+  (db.events || []).forEach(function(e){
+    if(e && typeof e.count === 'number') out.allTime += e.count;
+  });
+
+  var dayList = Object.keys(dayset).map(Number).filter(function(d){ return d >= from; });
+  out.activeDays = dayList.length;
+  out.perDay  = days ? Math.round(out.total / days * 100) / 100 : 0;
+  out.perWeek = Math.round(out.perDay * 7 * 10) / 10;
+
+  /* 最多的一天 / 半小时段 */
+  dayList.forEach(function(d){ if(!out.bestDay || dayset[d] > out.bestDay.n) out.bestDay = { day:d, n:dayset[d] }; });
+  (function(){
+    /* 用两小时为一段，比单小时更稳（事件不像待办那样扎堆在一个小时内） */
+    var segs = [], i;
+    for(i = 0; i < 12; i++){
+      var n = out.hours[i*2] + out.hours[i*2+1];
+      segs.push({ from:i*2, n:n });
+    }
+    var best = segs[0];
+    segs.forEach(function(sg){ if(sg.n > best.n) best = sg; });
+    out.buziest = best.n ? best : null;
+  })();
+
+  /* 逐事件：窗口内次数 / 距今多久没做 / 近半程 vs 前半程 */
+  var mid = Math.floor(days / 2);
+  out.items = evs.map(function(e){
+    var arr = (byId[e.id] || []).slice().sort(function(a,b){ return a-b; });
+    var inWin = arr.filter(function(at){ return at >= from; });
+    var last  = arr.length ? arr[arr.length-1] : null;
+    var first = arr.length ? arr[0] : null;
+    var half  = today - mid * DAY;
+    var older = inWin.filter(function(at){ return at <  half; }).length;
+    var newer = inWin.filter(function(at){ return at >= half; }).length;
+    return {
+      id: e.id, name: e.name,
+      total: (typeof e.count === 'number') ? e.count : 0,
+      n: inWin.length,
+      last: last,
+      restDays: last ? Math.floor((today - dayStart(last)) / DAY) : null,
+      spanDays: (first !== null && last !== null) ? Math.max(1, Math.round((dayStart(last) - dayStart(first)) / DAY) + 1) : null,
+      older: older, newer: newer,
+      delta: newer - older
+    };
+  });
+
+  /* 只保留有过记录的，按窗口内次数排；榜首和进步最大各挑一个 */
+  var ranked = out.items.filter(function(x){ return x.n > 0; }).sort(function(a,b){ return b.n - a.n; });
+  out.ranked = ranked;
+  out.topEvent = ranked.length ? ranked[0] : null;
+  var risers = out.items.filter(function(x){ return x.n > 0 && x.delta > 0; })
+                        .sort(function(a,b){ return b.delta - a.delta; });
+  out.rising = risers.length ? risers[0] : null;
+
+  /* 最久没做的（只在有记录的事件里比，没记录的不算「荒废」） */
+  var rested = out.items.filter(function(x){ return x.last !== null; })
+                        .sort(function(a,b){ return (b.restDays||0) - (a.restDays||0); });
+  out.rest = (rested.length && rested[0].restDays > 0) ? rested[0] : null;
+
+  /* 最近 5 次记录，给一个「流水」看 */
+  var all = [];
+  Object.keys(byId).forEach(function(id){
+    var e = findEvent(id);
+    if(!e || e.deleted) return;
+    byId[id].forEach(function(at){ all.push({ at:at, name:e.name, id:id }); });
+  });
+  all.sort(function(a,b){ return b.at - a.at; });
+  out.recent = all.slice(0, 5);
+  out.all = all;
+  out.span = all.length ? { first: all[all.length-1].at, last: all[0].at } : null;
+
+  return out;
 }
 
 /* 对比「前半段 vs 后半段」，给出一句话趋势判断 */
@@ -1402,24 +1708,162 @@ function cardRecur(s){
        + '<div class="hint">'+streakLine+' 完成率最低的排在最上面，优先看它们。</div></div>';
 }
 
-function renderStats(){
-  var s = computeStats(ui.days);
-  var html = '<div class="sec-title">事项统计 · 四象限待办</div>'
-           + cardOverview(s)
+/* ---- 事件卡片 ---- */
+function cardEventOverview(s){
+  var e = s.event;
+  if(!e.allTime && !e.total){
+    return '<div class="card"><h3>事件概览</h3>'
+         + '<div class="empty-stat">还没有事件记录。<br>到「事件」页新建一个，点 ＋ 就会开始统计。</div></div>';
+  }
+  function tile(v, k, warn){
+    return '<div class="tile'+(warn?' warn':'')+'"><div class="v">'+v+'</div><div class="k">'+k+'</div></div>';
+  }
+  return '<div class="tiles">'
+    + tile(e.total, '窗口内次数')
+    + tile(e.allTime, '累计次数')
+    + tile(e.perDay, '平均每天')
+    + tile(e.perWeek, '平均每周')
+    + tile(e.activeDays + '/' + s.days, '有记录的天数')
+    + tile(e.items.filter(function(x){ return x.n > 0; }).length, '活跃事件')
+    + '</div>'
+    + '<div class="hint" style="margin:-2px 14px 0">'
+    + '「累计次数」来自事件自身的计数器，不受日志裁剪影响。</div>';
+}
+
+function cardEventTrend(s){
+  var e = s.event;
+  var w = 320, h = 80;
+  var vals = [], i;
+  for(i = 0; i < s.days; i++){
+    vals.push(e.dayDone[dayStart(Date.now()) - (s.days-1-i)*DAY] || 0);
+  }
+  var any = vals.some(function(v){ return v > 0; });
+  if(!any){
+    return '<div class="card"><h3>记录趋势<span class="sub">每天记了几次</span></h3>'
+         + '<div class="empty-stat">这段时间还没有记录</div></div>';
+  }
+  var max = Math.max.apply(null, vals.concat([1]));
+  var gap = s.days > 45 ? 1 : (s.days > 20 ? 1.5 : 3);
+  var bw = (w - (s.days-1)*gap) / s.days;
+  var parts = [];
+  vals.forEach(function(v, idx){
+    if(!v) return;
+    var bh = v/max*h, x = idx*(bw+gap);
+    parts.push('<rect x="'+x.toFixed(1)+'" y="'+(h-bh).toFixed(1)+'" width="'+Math.max(0.6,bw).toFixed(1)
+      + '" height="'+bh.toFixed(1)+'" fill="var(--accent)" rx="1"/>');
+  });
+  var chart = '<svg viewBox="0 0 '+w+' '+h+'" class="chart" preserveAspectRatio="none">'+parts.join('')+'</svg>';
+
+  var line = e.bestDay
+    ? '最勤的一天是 <b>'+mmdd(e.bestDay.day)+'</b>，记了 <b>'+e.bestDay.n+'</b> 次。'
+    : '';
+  return '<div class="card"><h3>记录趋势<span class="sub">每天记了几次</span></h3>'
+       + chart + axisLabels(s.buckets, w)
+       + '<div class="hint">'+line+'</div></div>';
+}
+
+function cardEventRank(s){
+  var e = s.event;
+  var list = (e.ranked || []);
+  if(!list.length){
+    return '<div class="card"><h3>次数排行<span class="sub">窗口内</span></h3>'
+         + '<div class="empty-stat">这段时间还没有记录</div></div>';
+  }
+  var max = list[0].n || 1;
+  var rows = list.map(function(x, i){
+    var p = Math.round(x.n/max*100);
+    var col = i === 0 ? QCOLORS[2] : 'var(--accent)';
+    return '<div class="hbar"><span class="lb">'+esc(x.name)+'</span>'
+         + '<span class="track"><span class="fill" style="width:'+p+'%;background:'+col+'"></span></span>'
+         + '<span class="num">'+x.n+' 次</span></div>';
+  }).join('');
+  var top = e.topEvent
+    ? '窗口内 <b>'+esc(e.topEvent.name)+'</b> 最多，占 ' + pct(e.topEvent.n, e.total) + '%。'
+    : '';
+  var rise = e.rising
+    ? ' 涨得最快的是 <b>'+esc(e.rising.name)+'</b>（后半程比前半程多 '+e.rising.delta+' 次）。'
+    : '';
+  return '<div class="card"><h3>次数排行<span class="sub">窗口内 · 共 '+e.total+' 次</span></h3>'
+       + rows + '<div class="hint">'+top+rise+'</div></div>';
+}
+
+function cardEventRhythm(s){
+  var e = s.event;
+  var bars = e.hours.map(function(v){
+    var max = Math.max.apply(null, e.hours.concat([1]));
+    var hh = v ? Math.max(3, Math.round(v/max*56)) : 3;
+    return '<div style="height:'+hh+'px;opacity:'+(v?0.9:0.25)+'"></div>';
+  }).join('');
+  var any = e.hours.some(function(v){ return v > 0; });
+  var bz = e.buziest;
+  var txt = bz ? '你最常在 <b>'+bz.from+'–'+(bz.from+2)+' 点</b> 做这件事。' : '';
+  var rest = e.rest
+    ? ' 最久没记的是 <b>'+esc(e.rest.name)+'</b>，已经 '+e.rest.restDays+' 天。'
+    : '';
+  return '<div class="card"><h3>发生时段<span class="sub">你什么时候做这件事</span></h3>'
+       + '<div class="hours">'+bars+'</div>'
+       + '<div class="axis"><span>0点</span><span>6点</span><span>12点</span><span>18点</span><span>23点</span></div>'
+       + '<div class="hint">'+(any ? txt + rest : '这段时间还没有记录。')+'</div></div>';
+}
+
+function cardEventRecent(s){
+  var e = s.event;
+  var list = e.recent || [];
+  if(!list.length){
+    return '<div class="card"><h3>最近记录<span class="sub">最近 5 次</span></h3>'
+         + '<div class="empty-stat">还没有记录</div></div>';
+  }
+  var rows = list.map(function(x){
+    var d = new Date(x.at);
+    var day = dayStart(x.at) === dayStart(Date.now()) ? '今天' : mmdd(x.at);
+    return '<div class="hbar" style="margin-bottom:7px">'
+         + '<span class="lb">'+esc(x.name)+'</span>'
+         + '<span class="num" style="width:auto;flex:1;text-align:left;color:var(--muted)">'
+         + day + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + '</span></div>';
+  }).join('');
+  var span = '';
+  if(e.span){
+    var usedDays = Math.max(1, Math.round((dayStart(e.span.last) - dayStart(e.span.first)) / DAY) + 1);
+    span = '最早一次记录在 <b>'+mmdd(e.span.first)+'</b>，至今 <b>'+usedDays+'</b> 天。';
+  }
+  return '<div class="card"><h3>最近记录<span class="sub">最近 '+list.length+' 次</span></h3>'
+       + rows + '<div class="hint">'+span+'</div></div>';
+}
+
+/* ---- 三个子页 ---- */
+function renderStatsQuad(s){
+  var html = cardOverview(s)
            + cardQuadrant(s) + cardDoneTrend(s) + cardQE(s)
            + cardFlow(s) + cardDuration(s) + cardHours(s);
   if(s.trend) html += '<div class="card"><h3>整体趋势<span class="sub">事项</span></h3>'
                     + '<div class="hint" style="margin:0">'+s.trend+'</div></div>';
-  html += '<div class="sec-title">习惯统计 · 周期待办</div>'
-        + cardHabitToday(s) + cardHabitHeat(s) + cardRecur(s);
+  return html;
+}
+function renderStatsHabit(s){
+  return cardHabitToday(s) + cardHabitHeat(s) + cardRecur(s);
+}
+function renderStatsEvent(s){
+  return cardEventOverview(s) + cardEventTrend(s)
+       + cardEventRank(s) + cardEventRhythm(s) + cardEventRecent(s);
+}
+
+function renderStats(){
+  var s = computeStats(ui.days);
+  var which = ui.stats || 'quad';
+  var html = which === 'habit' ? renderStatsHabit(s)
+           : which === 'event' ? renderStatsEvent(s)
+           : renderStatsQuad(s);
   document.getElementById('statsBody').innerHTML = html;
   document.querySelectorAll('#segRange button').forEach(function(b){
     b.classList.toggle('on', parseInt(b.getAttribute('data-days'),10) === ui.days);
   });
+  document.querySelectorAll('#segStats button').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('data-stats') === which);
+  });
 }
 
 /* 记下滚动位置：整块重绘会把它清空，勾选一条后列表会跳回顶部 */
-var SCROLL_IDS = ['ql0','ql1','ql2','ql3','quadBody','recurScroll','statsBody'];
+var SCROLL_IDS = ['ql0','ql1','ql2','ql3','quadBody','recurScroll','eventScroll','statsBody'];
 function captureScroll(){
   var o = {};
   SCROLL_IDS.forEach(function(id){
@@ -1457,14 +1901,79 @@ function hideToast(){
   if(toastTimer){ clearTimeout(toastTimer); toastTimer = null; }
 }
 
+/* 通用确认弹窗：替代 confirm，能显示两行说明，移动端更清楚 */
+var cfmOnYes = null;
+function confirmDialog(title, text, yesLabel, onYes){
+  document.getElementById('cfmTitle').textContent = title;
+  document.getElementById('cfmText').innerHTML = text || '';
+  document.getElementById('cfmYes').textContent = yesLabel || '确定';
+  cfmOnYes = onYes;
+  document.getElementById('cfmMask').classList.remove('hidden');
+}
+document.getElementById('cfmNo').addEventListener('click', function(){
+  document.getElementById('cfmMask').classList.add('hidden');
+  cfmOnYes = null;
+});
+document.getElementById('cfmYes').addEventListener('click', function(){
+  var fn = cfmOnYes;
+  document.getElementById('cfmMask').classList.add('hidden');
+  cfmOnYes = null;
+  if(fn) fn();
+});
+
 /* ============ 渲染：总入口 ============ */
 function render(){
   var sc = captureScroll();
   if(ui.tab === 'home') renderGrid();
   if(ui.tab === 'recur') renderRecur();
+  if(ui.tab === 'event') renderEvents();
   if(ui.tab === 'stats') renderStats();
   if(ui.quad !== null) renderQuad();
   restoreScroll(sc);
+}
+
+/* ============ 事件编辑器 ============ */
+function openEventEditor(id){
+  editingEventId = id || null;
+  var e = id ? findEvent(id) : null;
+  document.getElementById('eventEditTitle').textContent = e ? '编辑事件' : '新建事件';
+  document.getElementById('fEventName').value = e ? (e.name || '') : '';
+  document.getElementById('eventDeleteRow').classList.toggle('hidden', !e);
+  document.getElementById('maskEvent').classList.remove('hidden');
+  if(!e) setTimeout(function(){ document.getElementById('fEventName').focus(); }, 120);
+}
+function closeEventEditor(){
+  document.getElementById('maskEvent').classList.add('hidden');
+  editingEventId = null;
+}
+function saveEventEditor(){
+  var name = document.getElementById('fEventName').value.trim();
+  if(!name){ document.getElementById('fEventName').focus(); return; }
+  name = name.slice(0, 40);
+  if(editingEventId){
+    var e = findEvent(editingEventId);
+    if(e) e.name = name;
+  }else{
+    db.events.push({ id: uid(), name: name, createdAt: Date.now(), deleted: false, count: 0 });
+  }
+  save(); closeEventEditor(); renderEvents();
+}
+function deleteEvent(id){
+  var e = findEvent(id);
+  if(!e) return;
+  var n = (typeof e.count === 'number') ? e.count : 0;
+  confirmDialog(
+    '删除事件「' + esc(e.name) + '」？',
+    '它累计的 ' + n + ' 次记录会一并删除，无法撤销。<br>（如果想留着，点「取消」。）',
+    '删除', function(){
+      e.deleted = true;
+      e.count = 0;
+      /* 历史 bump 一并清掉，否则统计里会出现一个查不到名字的事件 */
+      db.log = (db.log || []).filter(function(x){ return !(x.type === 'bump' && x.id === id); });
+      save(); closeEventEditor(); renderEvents();
+      showToast('已删除「' + e.name + '」');
+    }
+  );
 }
 
 /* ============ 编辑器 ============ */
@@ -1619,6 +2128,12 @@ document.addEventListener('click', function(ev){
       return;
     }
     if(act === 'add'){ openEditor(null, parseInt(el.getAttribute('data-q'),10)); return; }
+    if(act === 'bump-event'){ bumpEvent(el.getAttribute('data-id')); return; }
+    if(act === 'edit-event'){
+      var it3 = el.closest('.item');
+      if(it3) openEventEditor(it3.getAttribute('data-id'));
+      return;
+    }
     if(act === 'open'){
       ui.quad = parseInt(el.getAttribute('data-q'),10);
       document.getElementById('screenQuad').classList.remove('hidden');
@@ -1648,21 +2163,29 @@ document.addEventListener('click', function(ev){
 
   var db2 = ev.target.closest('[data-days]');
   if(db2){ ui.days = parseInt(db2.getAttribute('data-days'),10); renderStats(); return; }
+
+  var sb2 = ev.target.closest('[data-stats]');
+  if(sb2){ ui.stats = sb2.getAttribute('data-stats'); renderStats(); return; }
 });
 
 function switchTab(tab){
   ui.tab = tab;
   settle();                      // 先结算：跨过凌晨 4 点后切页也能看到正确状态
-  ['home','recur','stats'].forEach(function(t){
+  ['home','recur','event','stats'].forEach(function(t){
     document.getElementById('page-'+t).classList.toggle('hidden', t !== tab);
   });
   document.querySelectorAll('#tabbar button').forEach(function(b){
     b.classList.toggle('on', b.getAttribute('data-tab') === tab);
   });
   document.getElementById('btnRecurAdd').classList.toggle('hidden', tab !== 'recur');
+  document.getElementById('btnEventAdd').classList.toggle('hidden', tab !== 'event');
   document.getElementById('pageTitle').textContent =
-    tab === 'home' ? '佳木的待办助手' : tab === 'recur' ? '周期待办' : '数据统计';
+    tab === 'home' ? '佳木的待办助手'
+    : tab === 'recur' ? '周期待办'
+    : tab === 'event' ? '事件'
+    : '数据统计';
   if(tab === 'recur') renderRecur();
+  if(tab === 'event') renderEvents();
   if(tab === 'stats') renderStats();
 }
 
@@ -1701,6 +2224,22 @@ document.getElementById('quadAdd').addEventListener('click', function(){
 });
 document.getElementById('btnRecurAdd').addEventListener('click', function(){
   openEditor(null, null, ui.rtype);
+});
+document.getElementById('btnEventAdd').addEventListener('click', function(){
+  openEventEditor(null);
+});
+
+/* 事件编辑弹层 */
+document.getElementById('btnEventCancel').addEventListener('click', closeEventEditor);
+document.getElementById('btnEventSave').addEventListener('click', saveEventEditor);
+document.getElementById('btnEventDelete').addEventListener('click', function(){
+  if(editingEventId) deleteEvent(editingEventId);
+});
+document.getElementById('maskEvent').addEventListener('click', function(ev){
+  if(ev.target === this) closeEventEditor();
+});
+document.getElementById('fEventName').addEventListener('keydown', function(ev){
+  if(ev.key === 'Enter' && !ev.shiftKey){ ev.preventDefault(); saveEventEditor(); }
 });
 
 /* 数据管理 */
