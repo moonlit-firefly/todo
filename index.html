@@ -123,6 +123,19 @@ input,textarea{font:inherit;color:var(--text)}
   font-size:23px;font-weight:300;line-height:1;display:grid;place-items:center}
 .ev-plus:active{opacity:.7}
 .ev-today{color:var(--accent);font-weight:600}
+
+/* ---------- 星级 ---------- */
+/* 每颗星是一个容器，里面放灰色底星 + 橙色实星；
+   实星按分值做宽度裁切，所以「半星」就是 50% 宽。 */
+.star{display:inline-flex;gap:4px;padding:2px 0;line-height:1}
+.star .st{position:relative;width:25px;height:25px;display:inline-block;font-size:23px;line-height:25px;text-align:center}
+.star .base,.star .top{position:absolute;top:0;left:0;width:100%;overflow:hidden}
+.star .base{color:#d8d8dd}
+.star .top{color:#ffb300;width:0}
+@media (prefers-color-scheme:dark){.star .base{color:#48484a}}
+.star-tip{font-size:11.5px;color:var(--muted);line-height:1.7;margin-top:6px}
+.lb .st-mini,.ev-stars{color:#ffb300;font-size:11px;letter-spacing:1px;margin-left:4px;white-space:nowrap}
+.ev-stars{font-size:12px;margin-left:6px;letter-spacing:0}
 .hours{display:flex;align-items:flex-end;gap:2px;height:66px}
 .hours div{flex:1;background:var(--accent);border-radius:2px 2px 0 0;opacity:.85}
 .axis{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);margin-top:5px}
@@ -162,7 +175,7 @@ input,textarea{font:inherit;color:var(--text)}
   width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:15px;outline:none
 }
 @media (prefers-color-scheme:dark){.field textarea,.field input[type=date],.field input[type=datetime-local],.field input[type=number]{background:#2c2c2e}}
-.field textarea{resize:none;min-height:76px;line-height:1.5}
+.field textarea{resize:none;min-height:76px;line-height:1.5;display:block;width:100%}
 .field textarea:focus,.field input:focus{border-color:var(--accent)}
 .chips{display:flex;gap:8px}
 .chips.wrap{flex-wrap:wrap}
@@ -348,6 +361,12 @@ input,textarea{font:inherit;color:var(--text)}
     </div>
 
     <div class="field">
+      <label>重要程度（星级越高排得越靠前）</label>
+      <div id="editStar" data-star="0"></div>
+      <div class="star-tip">点左半颗 = 半星，点右半颗 = 整星；再点一次当前那格可以清零。</div>
+    </div>
+
+    <div class="field">
       <label>提醒时间（可留空，暂不触发通知）</label>
       <input type="datetime-local" id="fRemind">
     </div>
@@ -371,6 +390,12 @@ input,textarea{font:inherit;color:var(--text)}
     <div class="field">
       <label>事件名称</label>
       <textarea id="fEventName" placeholder="要记录的事情？例如「游泳」「跑步」"></textarea>
+    </div>
+
+    <div class="field">
+      <label>重要程度（星级越高排得越靠前）</label>
+      <div id="eventStar" data-star="0"></div>
+      <div class="star-tip">点左半颗 = 半星，点右半颗 = 整星；再点一次当前那格可以清零。</div>
     </div>
     <div class="hint" style="margin:-6px 0 14px">
       事件不追求「完成」，只累计次数：每点一次 <b>＋</b> 记 1 次，并自动记下发生时间。
@@ -448,7 +473,7 @@ var ui = { tab:'home', sub:'pending', quad:null, rtype:'daily', days:7, stats:'q
 var storageOK = true;
 var editingId = null;
 var editingEventId = null;
-var draft = { imp:true, urg:true, recur:'none', intervalDays:3 };
+var draft = { imp:true, urg:true, recur:'none', intervalDays:3, star:0, evStar:0 };
 
 /* ============ 存储 ============ */
 var corruptRaw = null;      // 读取失败时保留的原始内容（绝不静默丢弃）
@@ -618,7 +643,9 @@ function normalizeImport(o){
       intervalDays: typeof t.intervalDays === 'number' ? t.intervalDays : null,
       lastResetAt: typeof t.lastResetAt === 'number' ? t.lastResetAt : null,
       doneCount: typeof t.doneCount === 'number' ? t.doneCount : null,
-      lastDoneDay: typeof t.lastDoneDay === 'number' ? t.lastDoneDay : null
+      lastDoneDay: typeof t.lastDoneDay === 'number' ? t.lastDoneDay : null,
+      streakOffset: (typeof t.streakOffset === 'number' && t.streakOffset > 0) ? t.streakOffset : 0,
+      star: normStar(t.star)
     });
   });
   /* id 统一在这里规范化：非法或重复的换新 id，日志里的引用同步改写，
@@ -636,7 +663,8 @@ function normalizeImport(o){
       name: nm,
       createdAt: typeof e.createdAt === 'number' ? e.createdAt : Date.now(),
       deleted: !!e.deleted,
-      count: (typeof e.count === 'number' && e.count >= 0) ? Math.floor(e.count) : 0
+      count: (typeof e.count === 'number' && e.count >= 0) ? Math.floor(e.count) : 0,
+      star: normStar(e.star)
     });
   });
   normalizeIds(out.events, out.log);
@@ -674,6 +702,71 @@ function bumpEvent(id){
     }
     save(); renderEvents();
   });
+}
+
+/* ---- 星级控件 ---- */
+/* 每颗星 = 灰色底星 + 按分值裁切的橙色实星。
+   每颗星分左右两半：点左半 = 半星，点右半 = 整星，单位 0.5，范围 0～5。
+   点当前值本身 = 清空（0 星），省掉一个清除按钮。 */
+function starHTML(id, val){
+  var v = normStar(val);
+  var out = '<span class="star" id="' + id + '" data-star="' + v + '">';
+  for(var i = 1; i <= 5; i++){
+    var f = v >= i ? 100 : (v >= i - 0.5 ? 50 : 0);
+    out += '<span class="st">'
+         +   '<span class="base">★</span>'
+         +   '<span class="top" style="width:' + f + '%">★</span>'
+         +   '<span style="position:absolute;top:0;left:0;width:50%;height:100%" data-v="' + (i - 0.5) + '"></span>'
+         +   '<span style="position:absolute;top:0;right:0;width:50%;height:100%" data-v="' + i + '"></span>'
+         + '</span>';
+  }
+  return out + '</span>';
+}
+/* 点星：与当前值相同 → 清零；否则设成该值。返回新值。 */
+function applyPick(el, raw){
+  var v = normStar(raw);
+  var cur = normStar(el.getAttribute('data-star'));
+  var next = (cur === v) ? 0 : v;
+  var fresh = document.createElement('span');
+  fresh.innerHTML = starHTML(el.id || '', next);
+  el.replaceWith(fresh.firstChild);
+  return next;
+}
+/* 事件委托：初始化时挂一次，重绘后依然有效 */
+function wireStarPicker(){
+  document.addEventListener('click', function(ev){
+    var h = ev.target.closest ? ev.target.closest('[data-v]') : null;
+    if(!h) return;
+    var box = h.closest('.star');
+    if(!box || !box.id) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    var next = applyPick(box, h.getAttribute('data-v'));
+    if(box.id === 'editStar') draft.star = next;
+    if(box.id === 'eventStar') draft.evStar = next;
+  }, true);
+}
+function setStar(id, val){
+  var el = document.getElementById(id);
+  if(!el) return null;
+  var fresh = document.createElement('span');
+  fresh.innerHTML = starHTML(id, val);
+  el.replaceWith(fresh.firstChild);
+  return document.getElementById(id);
+}
+function readStar(id){
+  var el = document.getElementById(id);
+  return el ? normStar(el.getAttribute('data-star')) : 0;
+}
+/* 列表里展示用的紧凑星级：★★★ / ★★★½ 形式，节省宽度 */
+function starText(v){
+  var n = normStar(v);
+  if(!n) return '';
+  var full = Math.floor(n), half = (n % 1) >= 0.5;
+  var s = '';
+  for(var i = 0; i < full; i++) s += '★';
+  if(half) s += '½';
+  return s;
 }
 
 /* 下载文本为文件 */
@@ -753,6 +846,23 @@ function migrate(){
 
 /* ============ 工具 ============ */
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* 星级：0.5 ～ 5，步进半颗。0 = 没打星。
+   非数字、越界、∞/NaN 一律归 0，保证排序和渲染都不会被脏数据带崩。 */
+function normStar(v){
+  var n = Number(v);
+  if(!isFinite(n) || n <= 0) return 0;
+  n = Math.round(n * 2) / 2;
+  return n > 5 ? 5 : n;
+}
+/* 星级排序比较器：星级高的排前面，同星级再用传入的兜底规则 */
+function byStarThen(fallback){
+  return function(a, b){
+    var d = normStar(b.star) - normStar(a.star);
+    if(d) return d;
+    return fallback ? fallback(a, b) : 0;
+  };
+}
 
 /* 周期天数统一在这里夹紧 1..365。
    只在编辑器里夹不够 —— 导入的数据可能带超大值，会让「每 N 天」形同不刷新。 */
@@ -914,6 +1024,9 @@ function itemHTML(t){
   var safeId = /^[A-Za-z0-9_-]{1,64}$/.test(String(t.id)) ? t.id : '';
   var metas = [];
 
+  var st = starText(t.star);
+  if(st) metas.push('<span class="st-mini">' + st + '</span>');
+
   var d = dueText(t);
   if(d) metas.push('<span class="'+d.cls+'">'+esc(d.label)+'</span>');
   if(autoUpgraded(t)) metas.push('<span class="auto">⚡ 自动紧急</span>');
@@ -941,6 +1054,12 @@ function renderGrid(){
   var html = '';
   for(var q=0; q<4; q++){
     var list = inQuad(q, done);
+    /* 星级高的排前面；同级按截止时间近的在前，再按创建时间 */
+    list.sort(byStarThen(function(a, b){
+      var da = a.dueAt || Infinity, db2 = b.dueAt || Infinity;
+      if(da !== db2) return da - db2;
+      return (a.createdAt||0) - (b.createdAt||0);
+    }));
     var shown = list.slice(0, SHOW_MAX);
     var body = list.length === 0
       ? '<div class="q-empty">'+(done?'还没有完成的':'暂无待办')+'</div>'
@@ -979,10 +1098,11 @@ function renderQuad(){
 function renderRecur(){
   var type = ui.rtype;
   var list = inRecur(type);
-  list.sort(function(a,b){
+  /* 排序：未完成在前（完成的沉底），再按星级从高到低，同级按创建时间 */
+  list.sort(byStarThen(function(a, b){
     if(a.done !== b.done) return a.done ? 1 : -1;
     return (a.createdAt||0) - (b.createdAt||0);
-  });
+  }));
 
   var box = document.getElementById('recurList');
   var empty = document.getElementById('recurEmpty');
@@ -1031,7 +1151,8 @@ function eventItemHTML(e){
 
   return '<div class="item" data-id="' + e.id + '">'
        +   '<div class="ev-main" data-act="edit-event">'
-       +     '<div class="ev-name">' + esc(e.name) + '</div>'
+       +     '<div class="ev-name">' + esc(e.name) + '<span class="ev-stars">'
+       +       starText(e.star) + '</span></div>'
        +     '<div class="ev-sub">' + esc(when) + '</div>'
        +   '</div>'
        +   '<div class="ev-count"><b>' + total + '</b><span>'
@@ -1042,7 +1163,10 @@ function eventItemHTML(e){
 }
 
 function renderEvents(){
-  var list = activeEvents();
+  /* 排序：星级高的在前，同级按创建时间 */
+  var list = activeEvents().slice().sort(byStarThen(function(a, b){
+    return (a.createdAt||0) - (b.createdAt||0);
+  }));
   var box  = document.getElementById('eventList');
   var empty = document.getElementById('eventEmpty');
 
@@ -1939,6 +2063,8 @@ function openEventEditor(id){
   document.getElementById('eventEditTitle').textContent = e ? '编辑事件' : '新建事件';
   document.getElementById('fEventName').value = e ? (e.name || '') : '';
   document.getElementById('eventDeleteRow').classList.toggle('hidden', !e);
+  draft.evStar = e ? normStar(e.star) : 0;
+  setStar('eventStar', draft.evStar);
   document.getElementById('maskEvent').classList.remove('hidden');
   if(!e) setTimeout(function(){ document.getElementById('fEventName').focus(); }, 120);
 }
@@ -1950,11 +2076,12 @@ function saveEventEditor(){
   var name = document.getElementById('fEventName').value.trim();
   if(!name){ document.getElementById('fEventName').focus(); return; }
   name = name.slice(0, 40);
+  var star = normStar(readStar('eventStar'));
   if(editingEventId){
     var e = findEvent(editingEventId);
-    if(e) e.name = name;
+    if(e){ e.name = name; e.star = star; }
   }else{
-    db.events.push({ id: uid(), name: name, createdAt: Date.now(), deleted: false, count: 0 });
+    db.events.push({ id: uid(), name: name, createdAt: Date.now(), deleted: false, count: 0, star: star });
   }
   save(); closeEventEditor(); renderEvents();
 }
@@ -1988,6 +2115,7 @@ function openEditor(id, presetQuad, presetRecur){
     draft.urg = !!t.urgent;
     draft.recur = isRecur(t) ? t.recurring : 'none';
     draft.intervalDays = Math.max(1, parseInt(t.intervalDays,10) || 3);
+    draft.star = normStar(t.star);
     document.getElementById('fContent').value = t.content || '';
     /* 必须用 toLocalInput：fDue 是 datetime-local，只给「YYYY-MM-DD」会被浏览器
        判定为非法值并置空，用户一保存就把原有截止时间清掉了。 */
@@ -1996,6 +2124,7 @@ function openEditor(id, presetQuad, presetRecur){
   }else{
     draft.recur = presetRecur || 'none';
     draft.intervalDays = 3;
+    draft.star = 0;
     if(draft.recur === 'none'){
       var pq = (presetQuad === undefined || presetQuad === null) ? 0 : presetQuad;
       draft.imp = QUADS[pq].imp;
@@ -2008,6 +2137,7 @@ function openEditor(id, presetQuad, presetRecur){
     document.getElementById('fRemind').value = '';
   }
 
+  setStar('editStar', draft.star);
   document.getElementById('fInterval').value = draft.intervalDays;
   syncChips();
   syncRecurChips();
@@ -2055,6 +2185,7 @@ function saveEditor(){
   var intervalDays = (recur === 'interval')
     ? Math.max(1, Math.min(365, parseInt(document.getElementById('fInterval').value,10) || 1))
     : null;
+  var star = normStar(readStar('editStar'));
 
   if(editingId){
     db.todos.forEach(function(t){
@@ -2067,6 +2198,7 @@ function saveEditor(){
       t.remindAt  = remind;
       t.recurring = recur;
       t.intervalDays = intervalDays;
+      t.star      = star;
       if(recur){
         if(oldRecur !== recur || !t.lastResetAt) t.lastResetAt = Date.now();
       }else{
@@ -2081,7 +2213,8 @@ function saveEditor(){
       important: draft.imp, urgent: draft.urg,
       deleted: false,
       recurring: recur, intervalDays: intervalDays,
-      lastResetAt: recur ? Date.now() : null
+      lastResetAt: recur ? Date.now() : null,
+      star: star
     };
     db.todos.push(nt);
     logEvent('create', nt);
@@ -2376,6 +2509,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(setAppHeight
 if(window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
 
 /* ============ 启动 ============ */
+wireStarPicker();         // 星级点击用事件委托，只需挂一次
 load();
 migrate();
 settle();
