@@ -140,6 +140,9 @@ input,textarea{font:inherit;color:var(--text)}
 /* ---------- 高性价比人生指南 ---------- */
 /* 指南是主页的第三个子页：目录 / 搜索 / 筛选冻结，只有条目列表滚动 */
 .gview{flex:1;min-height:0;display:flex;flex-direction:column;position:relative}
+/* 指南模式下顶栏没有存在价值（一行静态标题 + ⋯），整条收起，省下的 53px 全给正文。
+   要进数据管理，切到别的子页即可。 */
+body.in-guide .topbar{display:none}
 .gbanner{display:flex;align-items:center;gap:10px;margin:0 14px 8px;padding:11px 13px;flex:none;
   background:linear-gradient(135deg,#3451b2,#5b6ee1);border-radius:var(--r);color:#fff}
 .gbanner:active{opacity:.85}
@@ -153,6 +156,10 @@ input,textarea{font:inherit;color:var(--text)}
 .gbar #btnToc{flex:none;width:38px;height:36px;border-radius:9px;background:var(--line);
   color:var(--accent);font-size:17px;display:grid;place-items:center}
 .gbar #btnToc:active{opacity:.7}
+/* 指南模式下顶栏收起了，数据管理入口挪到这里，别丢功能 */
+.gbar #btnMenu2{flex:none;width:34px;height:36px;border-radius:9px;color:var(--muted);
+  font-size:18px;display:grid;place-items:center}
+.gbar #btnMenu2:active{background:var(--line)}
 .gbar input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:9px;
   padding:8px 11px;font-size:14px;outline:none;color:var(--text)}
 .gbar input:focus{border-color:var(--accent)}
@@ -161,8 +168,9 @@ input,textarea{font:inherit;color:var(--text)}
 .gtabs button{padding:5px 11px;border-radius:999px;font-size:12px;background:var(--line);
   color:var(--muted);white-space:nowrap;flex:none}
 .gtabs button.on{background:var(--accent);color:#fff;font-weight:600}
-.gmeta{flex:none;font-size:11.5px;color:var(--muted);padding:8px 14px 6px;line-height:1.6;
-  border-bottom:1px solid var(--line);margin-bottom:8px}
+.gmeta{flex:none;font-size:11.5px;color:var(--muted);padding:5px 14px 4px;line-height:1.5;
+  border-bottom:1px solid var(--line);margin-bottom:6px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #gbody{padding-bottom:20px}
 .gsec{font-size:12.5px;font-weight:700;color:var(--muted);margin:16px 14px 8px;letter-spacing:.5px;
   scroll-margin-top:8px}
@@ -194,6 +202,8 @@ input,textarea{font:inherit;color:var(--text)}
   border:1px solid #ff950040;color:#8a5300;font-size:11.5px;line-height:1.65;flex:none}
 @media (prefers-color-scheme:dark){.gwarn{background:#ff950018;border-color:#ff950033;color:#e0a44a}}
 .gwarn b{font-weight:650}
+/* 压缩版：一行、更矮，放在正文内部（跟着滚，不占冻结区） */
+.gwarn.compact{padding:6px 10px;font-size:11px;line-height:1.5;margin:0 14px 8px}
 .gdisc{margin:14px 0 0;padding:13px;border-radius:var(--r);background:var(--bg);
   border:1px solid var(--line);color:var(--muted);font-size:11.5px;line-height:1.78}
 .gdisc h4{margin:0 0 9px;font-size:12.5px;color:var(--text);font-weight:650}
@@ -342,6 +352,7 @@ input,textarea{font:inherit;color:var(--text)}
     <div class="gbar">
       <button id="btnToc" aria-label="打开目录">☰</button>
       <input type="search" id="gq" placeholder="搜一搜：血压、睡眠、安全带…" autocomplete="off">
+      <button id="btnMenu2" aria-label="数据管理">⋯</button>
     </div>
     <div class="gtabs" id="gtabs">
       <button data-g="all" class="on">全部</button>
@@ -350,9 +361,6 @@ input,textarea{font:inherit;color:var(--text)}
       <button data-g="todo">可做习惯</button>
     </div>
     <div class="gmeta" id="gmeta"></div>
-    <div class="gwarn">
-      <b>⚠️ 资料汇编，不是医嘱。</b>健康、用药、急救、法律、钱的事请找专业人士；<b>紧急情况直接打 120</b>，别在这里查。
-    </div>
     <div class="scrollarea" id="gbody"></div>
   </div>
 </div>
@@ -2175,6 +2183,7 @@ function render(){
   if(ui.tab === 'home'){
     /* 主页有三个子页：待完成 / 已完成 / 人生指南 */
     var isGuide = (ui.sub === 'guide');
+    document.body.classList.toggle('in-guide', isGuide);   // 指南模式下收起顶栏
     document.getElementById('grid').classList.toggle('hidden', isGuide);
     document.getElementById('gview').classList.toggle('hidden', !isGuide);
     if(isGuide) renderGuide(); else renderGrid();
@@ -2364,9 +2373,18 @@ function renderGuide(){
            + '</div></div>';
     }
   }
+  /* 顶部警示条作为列表的第一项渲染：跟着滚，不占冻结区。
+     不复制已有 DOM —— 那会留下原元素继续占位。 */
   html += guideDisclaimerHTML();
-  box.innerHTML = html;
+  box.innerHTML = guideWarnHTML() + html;
   gSecCount = secs.length;
+}
+/* 一行版警示：放在正文最前面 */
+function guideWarnHTML(){
+  return '<div class="gwarn compact" id="gwarnTop">'
+       +   '<b>⚠️ 不是医嘱。</b>健康、用药、急救、法律、钱的事请找专业人士；'
+       +   '<b>急症直接打 120</b>。'
+       + '</div>';
 }
 
 /* ============ 指南目录（抽屉） ============ */
@@ -2432,6 +2450,9 @@ function syncTocHighlight(){
 }
 
 document.getElementById('btnToc').addEventListener('click', openToc);
+document.getElementById('btnMenu2').addEventListener('click', function(){
+  document.getElementById('screenMenu').classList.remove('hidden');
+});
 document.getElementById('tocClose').addEventListener('click', closeToc);
 document.getElementById('tocMask').addEventListener('click', closeToc);
 document.getElementById('tocBody').addEventListener('click', function(ev){
