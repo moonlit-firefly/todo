@@ -122,10 +122,15 @@ input,textarea{font:inherit;color:var(--text)}
 .ev-plus{flex:none;width:38px;height:38px;border-radius:50%;background:var(--accent);color:#fff;
   font-size:23px;font-weight:300;line-height:1;display:grid;place-items:center}
 .ev-plus:active{opacity:.7}
-.ev-btns{flex:none;display:flex;align-items:center;gap:6px}
-.ev-list{font-size:11.5px;padding:6px 9px;border-radius:8px;background:var(--bg);
-  color:var(--accent);font-weight:600;flex:none}
-.ev-list:active{opacity:.7}
+/* 事件详情页：一条记录一行，点进去能改 */
+.el-item{display:block;width:100%;text-align:left;padding:11px 13px;border-bottom:1px solid var(--line)}
+.el-item:last-child{border-bottom:0}
+.el-item:active{background:var(--line)}
+.el-when{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;gap:8px;align-items:baseline}
+.el-when b{color:var(--accent);font-weight:650}
+.el-note{font-size:13.5px;color:var(--text);line-height:1.6;margin-top:5px;word-break:break-word;white-space:pre-wrap}
+.el-note.empty{color:var(--muted);font-size:12.5px}
+.el-hint{font-size:11px;color:var(--muted);margin-top:4px}
 .ev-note{font-size:11.5px;color:var(--text);margin-top:4px;line-height:1.5;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
   padding-left:7px;border-left:2px solid var(--line)}
@@ -447,7 +452,18 @@ input,textarea{font:inherit;color:var(--text)}
   </div>
 </div>
 
-<!-- ========== 记一次弹层 ========== -->
+<!-- ========== 事件详情：这个事件的每条记录 ========== -->
+<div class="screen hidden" id="screenEventDetail">
+  <div class="screen-head">
+    <button class="back" data-close="screenEventDetail">‹ 返回</button>
+    <h2 id="edTitle">事件</h2>
+    <button class="iconbtn" id="edEdit" aria-label="编辑这个事件">✎</button>
+    <button class="iconbtn" id="edAdd" style="color:var(--accent)" aria-label="记一次">＋</button>
+  </div>
+  <div class="screen-body" id="edBody"></div>
+</div>
+
+<!-- ========== 记一次 / 改一条 弹层 ========== -->
 <div class="mask hidden" id="maskEntry">
   <div class="sheet" id="sheetEntry">
     <div class="sheet-grip"></div>
@@ -463,12 +479,15 @@ input,textarea{font:inherit;color:var(--text)}
       <textarea id="fEntryNote" placeholder="这次的心得、想到的改进、下次注意什么…"></textarea>
     </div>
     <div class="hint" style="margin:-6px 0 14px">
-      每次记录都会留下来，以后在「数据统计 → 事件」里能按事件翻看。
+      记录会一直留着。以后点事件就能翻看和修改每一条。
     </div>
 
     <div class="sheet-actions">
       <button class="btn ghost" id="btnEntryCancel">取消</button>
       <button class="btn primary" id="btnEntrySave">记下</button>
+    </div>
+    <div class="sheet-actions hidden" id="entryDeleteRow">
+      <button class="btn danger" id="btnEntryDelete">删除这条记录</button>
     </div>
   </div>
 </div>
@@ -538,6 +557,7 @@ var storageOK = true;
 var editingId = null;
 var editingEventId = null;
 var editingEntryEventId = null;
+var editingEntryIndex = null;
 var draft = { imp:true, urg:true, recur:'none', intervalDays:3, star:0, evStar:0 };
 
 /* ============ 存储 ============ */
@@ -759,20 +779,73 @@ function addEntry(e, note, at){
   e.lastAt = item.at;
   return item;
 }
-/* 弹层里「记一次」：可写时间和内容 */
-function openEntryEditor(eventId){
+/* ============ 事件详情：点事件进来，看/改它的每条记录 ============ */
+var detailEventId = null;
+
+function openEventDetail(eventId){
+  var e = findEvent(eventId);
+  if(!e) return;
+  detailEventId = eventId;
+  renderEventDetail();
+  document.getElementById('screenEventDetail').classList.remove('hidden');
+}
+function closeEventDetail(){
+  document.getElementById('screenEventDetail').classList.add('hidden');
+  detailEventId = null;
+}
+function renderEventDetail(){
+  var e = findEvent(detailEventId);
+  if(!e) return;
+  var list = eventEntries(e);
+  document.getElementById('edTitle').textContent =
+    e.name + ' · ' + list.length + ' 条' + (e.star ? ' ' + starText(e.star) : '');
+
+  var body = document.getElementById('edBody');
+  if(!list.length){
+    body.innerHTML = '<div class="empty-stat" style="padding:70px 30px">'
+      + '这个事件还没有记录。<br>点右上角 <b>＋</b> 记第一次。</div>';
+    return;
+  }
+  /* 新的排在最上面；data-idx 是它在 entries 里的真实下标，编辑时用它对上 */
+  var idx = list.map(function(_, i){ return i; }).sort(function(a, b){ return list[b].at - list[a].at; });
+  body.innerHTML = '<div class="rlist">' + idx.map(function(i){
+    var it = list[i];
+    var dt = new Date(it.at);
+    var day = dayStart(it.at) === dayStart(Date.now()) ? '今天' : (dt.getMonth()+1) + '/' + dt.getDate();
+    return '<button class="el-item" data-entry="' + i + '">'
+         +   '<div class="el-when"><b>' + day + ' ' + p2(dt.getHours()) + ':' + p2(dt.getMinutes()) + '</b>'
+         +     '<span>' + countdown(Date.now() - it.at) + '前</span></div>'
+         +   (it.note
+                ? '<div class="el-note">' + esc(it.note) + '</div>'
+                : '<div class="el-note empty">（没写内容，点一下可以补）</div>')
+         +   '<div class="el-hint">点这一条可以修改</div>'
+         + '</button>';
+  }).join('') + '</div>';
+}
+
+/* ============ 记一次 / 改一条 弹层 ============ */
+/* entryIdx 为 null 表示新增，否则是编辑 entries 里的第几条 */
+function openEntryEditor(eventId, entryIdx){
   var e = findEvent(eventId);
   if(!e) return;
   editingEntryEventId = eventId;
-  document.getElementById('entryTitle').textContent = '记一次「' + e.name + '」';
-  document.getElementById('fEntryWhen').value = toLocalInput(Date.now());
-  document.getElementById('fEntryNote').value = '';
+  editingEntryIndex = (entryIdx === undefined || entryIdx === null) ? null : entryIdx;
+  var isEdit = editingEntryIndex !== null;
+  var it = isEdit ? eventEntries(e)[editingEntryIndex] : null;
+
+  document.getElementById('entryTitle').textContent =
+    (isEdit ? '改这一条' : '记一次') + '「' + e.name + '」';
+  document.getElementById('fEntryWhen').value = toLocalInput(it ? it.at : Date.now());
+  document.getElementById('fEntryNote').value = it ? it.note : '';
+  document.getElementById('entryDeleteRow').classList.toggle('hidden', !isEdit);
+  document.getElementById('btnEntrySave').textContent = isEdit ? '保存' : '记下';
   document.getElementById('maskEntry').classList.remove('hidden');
   setTimeout(function(){ document.getElementById('fEntryNote').focus(); }, 120);
 }
 function closeEntryEditor(){
   document.getElementById('maskEntry').classList.add('hidden');
   editingEntryEventId = null;
+  editingEntryIndex = null;
 }
 function saveEntryEditor(){
   var e = findEvent(editingEntryEventId);
@@ -780,51 +853,59 @@ function saveEntryEditor(){
   var whenVal = document.getElementById('fEntryWhen').value;
   var at = whenVal ? new Date(whenVal).getTime() : Date.now();
   if(!isFinite(at)) at = Date.now();
-  var note = document.getElementById('fEntryNote').value.trim();
-  addEntry(e, note, at);
-  save(); closeEntryEditor(); renderEvents();
-  showToast('已记下「' + e.name + '」第 ' + e.count + ' 次', '撤销', function(){
-    e.entries.pop();
-    e.count = e.entries.length;
-    e.lastAt = e.entries.length ? e.entries[e.entries.length - 1].at : null;
-    save(); renderEvents();
-  });
+  var note = document.getElementById('fEntryNote').value.trim().slice(0, 500);
+
+  if(editingEntryIndex === null){
+    addEntry(e, note, at);
+    save(); closeEntryEditor(); renderEvents();
+    if(detailEventId === e.id) renderEventDetail();
+    showToast('已记下「' + e.name + '」第 ' + e.count + ' 次', '撤销', function(){
+      e.entries.pop();
+      e.count = e.entries.length;
+      e.lastAt = e.entries.length ? e.entries[e.entries.length - 1].at : null;
+      save(); renderEvents();
+      if(detailEventId === e.id) renderEventDetail();
+    });
+  }else{
+    var it = eventEntries(e)[editingEntryIndex];
+    if(!it){ closeEntryEditor(); return; }
+    it.at = at;
+    it.note = note;
+    e.lastAt = eventEntries(e).reduce(function(m, x){ return Math.max(m, x.at); }, 0) || null;
+    save(); closeEntryEditor(); renderEvents(); renderEventDetail();
+    showToast('已保存这条记录');
+  }
 }
-/* 查看 / 删除某条事件的全部记录 */
-function openEntryList(eventId){
+function deleteEntry(eventId, idx){
   var e = findEvent(eventId);
   if(!e) return;
-  var list = eventEntries(e).slice().sort(function(a, b){ return b.at - a.at; });
-  var rows = list.length ? list.map(function(it, i){
-    var dt = new Date(it.at);
-    return '<div class="el-item">'
-         +   '<div class="el-when">' + dt.getFullYear() + '/' + (dt.getMonth()+1) + '/' + dt.getDate()
-         +     ' ' + p2(dt.getHours()) + ':' + p2(dt.getMinutes()) + '</div>'
-         +   (it.note ? '<div class="el-note">' + esc(it.note) + '</div>' : '<div class="el-note empty">（没写内容）</div>')
-         +   '<button class="el-del" data-del-entry="' + i + '" aria-label="删除这条记录">删除</button>'
-         + '</div>';
-  }).join('') : '<div class="empty-stat">还没有记录。<br>点事件右边的 ＋ 就能记一次。</div>';
-  confirmDialog(
-    '「' + esc(e.name) + '」的记录（' + list.length + ' 条）',
-    '<div class="el-list">' + rows + '</div>',
-    '关闭', null
-  );
-  /* 删除按钮：单独挂，避免和确认弹窗的按钮冲突 */
-  var box = document.getElementById('cfmText');
-  box.addEventListener('click', function(ev){
-    var b = ev.target.closest('[data-del-entry]');
-    if(!b) return;
-    var idx = parseInt(b.getAttribute('data-del-entry'), 10);
-    var target = list[idx];
-    if(!target) return;
-    e.entries = eventEntries(e).filter(function(x){ return x !== target; });
-    e.count = e.entries.length;
-    e.lastAt = e.entries.length ? e.entries[e.entries.length - 1].at : null;
-    save(); renderEvents();
-    document.getElementById('cfmMask').classList.add('hidden');
-    openEntryList(eventId);
-  });
+  var it = eventEntries(e)[idx];
+  if(!it) return;
+  e.entries.splice(idx, 1);
+  e.count = e.entries.length;
+  e.lastAt = e.entries.length ? e.entries.reduce(function(m, x){ return Math.max(m, x.at); }, 0) : null;
+  save(); closeEntryEditor(); renderEvents(); renderEventDetail();
+  showToast('已删除这条记录');
 }
+
+/* 详情页里的交互 */
+document.getElementById('edAdd').addEventListener('click', function(){
+  if(detailEventId) openEntryEditor(detailEventId, null);
+});
+/* 改名 / 改星级 / 删除整个事件 —— 走原来的事件编辑面板 */
+document.getElementById('edEdit').addEventListener('click', function(){
+  if(detailEventId) openEventEditor(detailEventId);
+});
+document.getElementById('edBody').addEventListener('click', function(ev){
+  var b = ev.target.closest('[data-entry]');
+  if(!b || !detailEventId) return;
+  openEntryEditor(detailEventId, parseInt(b.getAttribute('data-entry'), 10));
+});
+document.getElementById('btnEntryDelete').addEventListener('click', function(){
+  if(editingEntryEventId !== null && editingEntryIndex !== null){
+    deleteEntry(editingEntryEventId, editingEntryIndex);
+  }
+});
 
 /* ---- 星级控件 ---- */
 /* 每颗星 = 灰色底星 + 按分值裁切的橙色实星。
@@ -1297,7 +1378,7 @@ function eventItemHTML(e){
   }
 
   return '<div class="item" data-id="' + e.id + '">'
-       +   '<div class="ev-main" data-act="edit-event">'
+       +   '<div class="ev-main" data-act="open-event">'
        +     '<div class="ev-name">' + esc(e.name) + '<span class="ev-stars">'
        +       starText(e.star) + '</span></div>'
        +     '<div class="ev-sub">' + esc(when) + '</div>'
@@ -1307,12 +1388,8 @@ function eventItemHTML(e){
        +   '</div>'
        +   '<div class="ev-count"><b>' + total + '</b><span>'
        +     (todayN ? '今天 ' + todayN + ' 次' : '次') + '</span></div>'
-       +   '<div class="ev-btns">'
-       +     '<button class="ev-plus" data-act="add-entry" data-id="' + e.id + '" aria-label="给'
-       +       esc(e.name) + '记一次">＋</button>'
-       +     (total ? '<button class="ev-list" data-act="list-entry" data-id="' + e.id
-                    + '" aria-label="查看记录">记录</button>' : '')
-       +   '</div>'
+       +   '<button class="ev-plus" data-act="add-entry" data-id="' + e.id + '" aria-label="给'
+       +     esc(e.name) + '记一次">＋</button>'
        + '</div>';
 }
 
@@ -1956,9 +2033,17 @@ function saveEventEditor(){
     var e = findEvent(editingEventId);
     if(e){ e.name = name; e.star = star; }
   }else{
-    db.events.push({ id: uid(), name: name, createdAt: Date.now(), deleted: false, count: 0, star: star });
+    db.events.push({ id: uid(), name: name, createdAt: Date.now(), deleted: false,
+                     star: star, count: 0, entries: [] });
   }
   save(); closeEventEditor(); renderEvents();
+  /* 改名可能是在详情页里发起的，标题要跟着变；
+     如果这个事件刚被删掉，就把详情页关掉 */
+  if(detailEventId){
+    var cur = findEvent(detailEventId);
+    if(!cur || cur.deleted) closeEventDetail();
+    else renderEventDetail();
+  }
 }
 function deleteEvent(id){
   var e = findEvent(id);
@@ -1970,9 +2055,12 @@ function deleteEvent(id){
     '删除', function(){
       e.deleted = true;
       e.count = 0;
-      /* 历史 bump 一并清掉，否则统计里会出现一个查不到名字的事件 */
+      e.entries = [];
+      /* bump 是旧版的计数日志，一并清掉，避免统计里出现查不到名字的事件 */
       db.log = (db.log || []).filter(function(x){ return !(x.type === 'bump' && x.id === id); });
       save(); closeEventEditor(); renderEvents();
+      /* 如果正停在这个事件的详情页，要退出去，否则会看到一条已删事件 */
+      if(detailEventId === id) closeEventDetail();
       showToast('已删除「' + e.name + '」');
     }
   );
@@ -2138,7 +2226,7 @@ document.addEventListener('click', function(ev){
     if(act === 'add'){ openEditor(null, parseInt(el.getAttribute('data-q'),10)); return; }
     if(act === 'bump-event'){ openEntryEditor(el.getAttribute('data-id')); return; }
     if(act === 'add-entry'){ openEntryEditor(el.getAttribute('data-id')); return; }
-    if(act === 'list-entry'){ openEntryList(el.getAttribute('data-id')); return; }
+    if(act === 'open-event'){ openEventDetail(el.closest('.item').getAttribute('data-id')); return; }
     if(act === 'edit-event'){
       var it3 = el.closest('.item');
       if(it3) openEventEditor(it3.getAttribute('data-id'));
