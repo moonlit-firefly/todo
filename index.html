@@ -54,12 +54,17 @@ input,textarea{font:inherit;color:var(--text)}
 .seg button.on{background:var(--card);opacity:1;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
 
 /* ---------- 四象限网格 ---------- */
-/* flex 两列；每一块的 flex-grow 由 JS 按条数写入（行高只能靠 flex-grow 分配），
-   同一行的两块谁内容多谁高，另一块自动缩。 */
-.grid{flex:1;min-height:0;display:flex;flex-wrap:wrap;align-content:stretch;
-  gap:8px;padding:0 10px;overflow:hidden}
+/* 两列各自一个 flex 容器：列内两块的相对高度只由本列的数量决定，
+   左右互不影响。高度用 flex-grow 分配（JS 按条数写入权重）。 */
+.grid{flex:1;min-height:0;display:flex;gap:8px;padding:0 10px;overflow:hidden}
+.qcol{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column;gap:8px}
+/* 下限 = 标题(41) + 空提示文字(约 19) + 上下留白，保证空白象限也好看。
+   flex-basis:0 必须：auto 会让每块以「自身内容高」为基准再分剩余空间，
+   结果同为 1 条的两块高度也不一样。basis:0 后高度只由 JS 写的 flex-grow 权重决定。 */
 .q{background:var(--card);border-radius:var(--r);display:flex;flex-direction:column;
-  min-height:0;overflow:hidden;flex:0 0 calc(50% - 4px);max-height:100%}
+  min-height:114px;overflow:hidden;flex-grow:1;flex-basis:0}
+/* 矮屏（横屏）下限调小。必须放在 .q 规则之后，否则被同优先级的上面那条覆盖。 */
+@media (max-height:520px){ .q{min-height:86px} }
 .q-head{display:flex;align-items:center;gap:5px;padding:8px 8px 6px;border-bottom:1px solid var(--line);flex:none}
 .q-dot{width:7px;height:7px;border-radius:50%;flex:none}
 .q-title{font-size:12px;font-weight:650;flex:1;line-height:1.15;letter-spacing:-.1px}
@@ -69,7 +74,8 @@ input,textarea{font:inherit;color:var(--text)}
 /* flex:1 1 auto 必须：0 0 auto 会让列表永远撑到内容高、从不溢出，
    于是 overflow:auto 永远不触发，内容多的象限会被 .q 直接裁掉。 */
 .q-list{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:1px 0}
-.q-empty{padding:14px 10px;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.5}
+.q-empty{padding:0 10px;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.5;
+  height:100%;display:flex;align-items:center;justify-content:center}
 
 /* ---------- 待办条目 ---------- */
 .item{display:flex;align-items:flex-start;gap:7px;padding:7px 8px 7px 8px;border-bottom:1px solid var(--line)}
@@ -1285,8 +1291,7 @@ function itemHTML(t){
 /* ============ 渲染：四象限主页 ============ */
 function renderGrid(){
   var done = (ui.sub === 'done');
-  var html = '';
-  var counts = [], lists = [];
+  var lists = [];
   for(var q=0; q<4; q++){
     var list = inQuad(q, done);
     /* 星级高的排前面；同级按截止时间近的在前，再按创建时间 */
@@ -1296,39 +1301,35 @@ function renderGrid(){
       return (a.createdAt||0) - (b.createdAt||0);
     }));
     lists.push(list);
-    counts.push(list.length);
   }
-  /* 行高只能由 flex-grow 分配：按条数算比例，空的给一个下限，
-     免得一条都没有的象限被压成一条缝。 */
-  var rowFlex = [
-    growOf(counts[0], counts[1]),
-    growOf(counts[2], counts[3])
-  ];
-  for(q=0; q<4; q++){
+  /* 左右两列各自分配：列内两块的权重只由本列条数决定，互不影响。
+     权重的绝对值不重要，只有同列两块的比例有意义。
+     空的那块给固定权重（它只有标题 + 一行提示），非空按「基准 + 条数」涨。 */
+  var EMPTY_W = 1.6;
+  function weights(a, b){
+    return [a > 0 ? EMPTY_W + a : EMPTY_W, b > 0 ? EMPTY_W + b : EMPTY_W];
+  }
+  var col1 = weights(lists[0].length, lists[2].length);   // 左列：Q1 / Q3
+  var col2 = weights(lists[1].length, lists[3].length);   // 右列：Q2 / Q4
+
+  function block(q, weight){
     var list2 = lists[q];
     var body = list2.length === 0
       ? '<div class="q-empty">'+(done?'还没有完成的':'暂无待办')+'</div>'
       : list2.map(itemHTML).join('');
-    var f = rowFlex[q < 2 ? 0 : 1];
-    html += '<div class="q" style="flex-grow:'+f[q % 2]+'">'
-          +   '<div class="q-head">'
-          +     '<span class="q-dot" style="background:'+QUADS[q].dot+'"></span>'
-          +     '<span class="q-title" data-act="open" data-q="'+q+'">'+QUADS[q].name
-          +       ' <span class="q-count">'+(list2.length||'')+'</span></span>'
-          +     '<button class="q-add" data-act="add" data-q="'+q+'" aria-label="新建">＋</button>'
-          +   '</div>'
-          +   '<div class="q-list" id="ql'+q+'">'+body+'</div>'
-          + '</div>';
+    return '<div class="q" style="flex-grow:'+weight+'">'
+         +   '<div class="q-head">'
+         +     '<span class="q-dot" style="background:'+QUADS[q].dot+'"></span>'
+         +     '<span class="q-title" data-act="open" data-q="'+q+'">'+QUADS[q].name
+         +       ' <span class="q-count">'+(list2.length||'')+'</span></span>'
+         +     '<button class="q-add" data-act="add" data-q="'+q+'" aria-label="新建">＋</button>'
+         +   '</div>'
+         +   '<div class="q-list" id="ql'+q+'">'+body+'</div>'
+         + '</div>';
   }
-  document.getElementById('grid').innerHTML = html;
-}
-/* 同一行的两块按条数分配高度；两边都空就平分 */
-function growOf(a, b){
-  if(!a && !b) return [1, 1];
-  if(!a) return [0.35, 1];      // 空的那块留个能看的最小高度
-  if(!b) return [1, 0.35];
-  var total = a + b;
-  return [Math.max(0.35, a / total * 2), Math.max(0.35, b / total * 2)];
+  document.getElementById('grid').innerHTML =
+      '<div class="qcol">' + block(0, col1[0]) + block(2, col1[1]) + '</div>'
+    + '<div class="qcol">' + block(1, col2[0]) + block(3, col2[1]) + '</div>';
 }
 
 /* ============ 渲染：象限详情 ============ */
