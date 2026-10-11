@@ -343,6 +343,7 @@ input,textarea{font:inherit;color:var(--text)}
       <button id="btnExportAI">导出数据给 AI 分析（.md）</button>
       <button id="btnGuideLink">高性价比人生指南 ↗</button>
       <button id="btnFitnessLink">高性价比健身指南 ↗</button>
+      <button id="btnLifeLogic">人生底层逻辑 ↗</button>
       <button id="btnExport">导出备份（JSON）</button>
       <button id="btnImport">导入备份（JSON）</button>
       <button id="btnCopy">复制备份到剪贴板</button>
@@ -2409,6 +2410,7 @@ document.getElementById('fEventName').addEventListener('keydown', function(ev){
 var GUIDE_URL = 'https://cdyforever.github.io/how-to-live-better/';
 var FITNESS_URL = 'https://bel1eff-0228.github.io/How-to-Train-Better/#reading-hub';
 var FITNESS_REPO = 'https://github.com/Bel1eff-0228/How-to-Train-Better';
+var LIFE_LOGIC_URL = 'https://moonlit-firefly.github.io/life-logic/#disclaimer';
 var SUGGEST_MAIL = '3357814092@qq.com';
 
 function menuInfoHTML(which){
@@ -2474,6 +2476,7 @@ function showMenuInfo(which){
 document.getElementById('btnGuide').addEventListener('click', function(){ showMenuInfo('usage'); });
 document.getElementById('btnGuideLink').addEventListener('click', function(){ showMenuInfo('guide'); });
 document.getElementById('btnFitnessLink').addEventListener('click', function(){ showMenuInfo('fitness'); });
+document.getElementById('btnLifeLogic').addEventListener('click', function(){ window.open(LIFE_LOGIC_URL, '_blank', 'noopener'); });
 document.getElementById('btnSuggest').addEventListener('click', function(){ showMenuInfo('suggest'); });
 
 document.getElementById('btnMenu').addEventListener('click', function(){
