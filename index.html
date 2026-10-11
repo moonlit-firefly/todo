@@ -54,16 +54,21 @@ input,textarea{font:inherit;color:var(--text)}
 .seg button.on{background:var(--card);opacity:1;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
 
 /* ---------- 四象限网格 ---------- */
-.grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:8px;padding:0 10px}
-.q{background:var(--card);border-radius:var(--r);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+/* flex 两列；每一块的 flex-grow 由 JS 按条数写入（行高只能靠 flex-grow 分配），
+   同一行的两块谁内容多谁高，另一块自动缩。 */
+.grid{flex:1;min-height:0;display:flex;flex-wrap:wrap;align-content:stretch;
+  gap:8px;padding:0 10px;overflow:hidden}
+.q{background:var(--card);border-radius:var(--r);display:flex;flex-direction:column;
+  min-height:0;overflow:hidden;flex:0 0 calc(50% - 4px);max-height:100%}
 .q-head{display:flex;align-items:center;gap:5px;padding:8px 8px 6px;border-bottom:1px solid var(--line);flex:none}
 .q-dot{width:7px;height:7px;border-radius:50%;flex:none}
 .q-title{font-size:12px;font-weight:650;flex:1;line-height:1.15;letter-spacing:-.1px}
 .q-count{font-size:11px;color:var(--muted);font-weight:400}
 .q-add{font-size:21px;line-height:1;color:var(--accent);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:none;font-weight:300}
 .q-add:active{background:var(--line)}
-.q-list{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:1px 0}
-.q-foot{padding:6px 8px;font-size:12px;color:var(--accent);border-top:1px solid var(--line);text-align:center;flex:none}
+/* flex:1 1 auto 必须：0 0 auto 会让列表永远撑到内容高、从不溢出，
+   于是 overflow:auto 永远不触发，内容多的象限会被 .q 直接裁掉。 */
+.q-list{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:1px 0}
 .q-empty{padding:14px 10px;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.5}
 
 /* ---------- 待办条目 ---------- */
@@ -265,7 +270,7 @@ input,textarea{font:inherit;color:var(--text)}
 
 <div class="topbar">
   <h1 id="pageTitle">佳木的待办助手</h1>
-  <button class="iconbtn hidden" id="btnRecurAdd" aria-label="新建周期待办">＋</button>
+  <button class="iconbtn hidden" id="btnRecurAdd" aria-label="新建习惯">＋</button>
   <button class="iconbtn hidden" id="btnEventAdd" aria-label="新建事件">＋</button>
   <button class="iconbtn" id="btnMenu" aria-label="数据管理">⋯</button>
 </div>
@@ -328,13 +333,15 @@ input,textarea{font:inherit;color:var(--text)}
   </div>
   <div class="screen-body" style="padding-top:14px">
     <div class="menu-list">
+      <button id="btnGuide">使用指南</button>
+      <button id="btnExportAI">导出数据给 AI 分析（.md）</button>
+      <button id="btnGuideLink">高性价比人生指南 ↗</button>
+      <button id="btnFitnessLink">高性价比健身指南 ↗</button>
       <button id="btnExport">导出备份（JSON）</button>
       <button id="btnImport">导入备份（JSON）</button>
       <button id="btnCopy">复制备份到剪贴板</button>
       <button id="btnSnapshots">从自动快照恢复</button>
-      <button id="btnGuideLink">高性价比人生指南 ↗</button>
       <button id="btnSuggest">提建议</button>
-      <button id="btnDiag">显示屏幕诊断信息</button>
       <button class="danger" id="btnClear">清空全部数据</button>
     </div>
     <div id="menuInfo" class="hidden"></div>
@@ -496,8 +503,8 @@ input,textarea{font:inherit;color:var(--text)}
 
 <!-- ========== 底部标签栏 ========== -->
 <nav class="tabbar" id="tabbar">
-  <button data-tab="home" class="on"><span class="ic">☑</span>主页</button>
-  <button data-tab="recur"><span class="ic">🔄</span>周期待办</button>
+  <button data-tab="home" class="on"><span class="ic">☑</span>待办</button>
+  <button data-tab="recur"><span class="ic">🔄</span>习惯</button>
   <button data-tab="event"><span class="ic">🏊</span>事件</button>
   <button data-tab="stats"><span class="ic">📊</span>数据统计</button>
 </nav>
@@ -529,7 +536,6 @@ var CORRUPT_KEY = 'dsh.todo.corrupt';
 var SNAP_KEY = 'dsh.todo.snapshots';
 var SNAP_META = 'dsh.todo.snapmeta';
 var SNAP_MAX = 3;
-var SHOW_MAX = 3;
 var DAY = 86400000;
 var DAY_OFFSET = 4 * 3600000;   // 「一天」从凌晨 4 点算起
 var QCOLORS = ['#ff3b30','#ff9500','#34c759','#a1a1a6'];
@@ -1279,7 +1285,9 @@ function itemHTML(t){
 /* ============ 渲染：四象限主页 ============ */
 function renderGrid(){
   var done = (ui.sub === 'done');
-  var html = '';  for(var q=0; q<4; q++){
+  var html = '';
+  var counts = [], lists = [];
+  for(var q=0; q<4; q++){
     var list = inQuad(q, done);
     /* 星级高的排前面；同级按截止时间近的在前，再按创建时间 */
     list.sort(byStarThen(function(a, b){
@@ -1287,25 +1295,40 @@ function renderGrid(){
       if(da !== db2) return da - db2;
       return (a.createdAt||0) - (b.createdAt||0);
     }));
-    var shown = list.slice(0, SHOW_MAX);
-    var body = list.length === 0
+    lists.push(list);
+    counts.push(list.length);
+  }
+  /* 行高只能由 flex-grow 分配：按条数算比例，空的给一个下限，
+     免得一条都没有的象限被压成一条缝。 */
+  var rowFlex = [
+    growOf(counts[0], counts[1]),
+    growOf(counts[2], counts[3])
+  ];
+  for(q=0; q<4; q++){
+    var list2 = lists[q];
+    var body = list2.length === 0
       ? '<div class="q-empty">'+(done?'还没有完成的':'暂无待办')+'</div>'
-      : shown.map(itemHTML).join('');
-    var foot = list.length > SHOW_MAX
-      ? '<div class="q-foot" data-act="open" data-q="'+q+'">查看全部 ('+list.length+')</div>'
-      : '';
-    html += '<div class="q">'
+      : list2.map(itemHTML).join('');
+    var f = rowFlex[q < 2 ? 0 : 1];
+    html += '<div class="q" style="flex-grow:'+f[q % 2]+'">'
           +   '<div class="q-head">'
           +     '<span class="q-dot" style="background:'+QUADS[q].dot+'"></span>'
           +     '<span class="q-title" data-act="open" data-q="'+q+'">'+QUADS[q].name
-          +       ' <span class="q-count">'+(list.length||'')+'</span></span>'
+          +       ' <span class="q-count">'+(list2.length||'')+'</span></span>'
           +     '<button class="q-add" data-act="add" data-q="'+q+'" aria-label="新建">＋</button>'
           +   '</div>'
           +   '<div class="q-list" id="ql'+q+'">'+body+'</div>'
-          +   foot
           + '</div>';
   }
   document.getElementById('grid').innerHTML = html;
+}
+/* 同一行的两块按条数分配高度；两边都空就平分 */
+function growOf(a, b){
+  if(!a && !b) return [1, 1];
+  if(!a) return [0.35, 1];      // 空的那块留个能看的最小高度
+  if(!b) return [1, 0.35];
+  var total = a + b;
+  return [Math.max(0.35, a / total * 2), Math.max(0.35, b / total * 2)];
 }
 
 /* ============ 渲染：象限详情 ============ */
@@ -1667,20 +1690,28 @@ function eventStats(days, today, now){
               bestDay:null, topEvent:null, items:[], entries:[] };
 
   var daySet = {};
+  var halfPoint = today - Math.floor(days / 2) * DAY;
 
   out.items = evs.map(function(e){
     var list = eventEntries(e).slice().sort(function(a, b){ return a.at - b.at; });
-    var inWin = 0, last = null, notes = 0;
+    var inWin = 0, last = null, notes = 0, firstInWin = null, older = 0, newer = 0;
     list.forEach(function(it){
       if(it.note) notes++;
       if(!last || it.at > last.at) last = it;
-      if(it.at >= from){ inWin++; daySet[dayStart(it.at)] = 1; }
+      if(it.at >= from){
+        inWin++;
+        daySet[dayStart(it.at)] = 1;
+        if(!firstInWin || it.at < firstInWin) firstInWin = it.at;
+        if(it.at < halfPoint) older++; else newer++;
+      }
     });
     return {
       id: e.id, name: e.name, star: normStar(e.star),
       total: list.length,
       n: inWin,
       notes: notes,
+      firstInWin: firstInWin,     // 窗口内第一条记录的时间，用来算平均间隔
+      older: older, newer: newer, // 前半程 / 后半程各做了几次
       last: last ? last.at : null,
       restDays: last ? Math.floor((today - dayStart(last.at)) / DAY) : null
     };
@@ -1742,7 +1773,7 @@ function cardOverview(s){
     + '<div class="tile"><div class="v">'+s.todayCreated+'</div><div class="k">今日新增</div></div>'
     + '<div class="tile"><div class="v">'+ratioTxt+'</div><div class="k">完成/新增</div></div>'
     + '</div>'
-    + '<div class="hint" style="margin:-2px 14px 0">以上只统计<b>四象限待办</b>。周期待办的指标在下方「习惯统计」。</div>';
+    + '<div class="hint" style="margin:-2px 14px 0">以上只统计<b>四象限待办</b>。习惯的指标在「习惯」子页。</div>';
 }
 
 function cardQuadrant(s){
@@ -1772,7 +1803,7 @@ function cardHabitToday(s){
   var h = s.habit;
   if(!h.total){
     return '<div class="card"><h3>今日打卡</h3>'
-         + '<div class="empty-stat">还没有周期待办。<br>到「周期待办」页新建，这里就会开始统计。</div></div>';
+         + '<div class="empty-stat">还没有习惯。<br>到「习惯」页新建，这里就会开始统计。</div></div>';
   }
   var p = pct(h.todayDone, h.todayTotal);
   var word = p >= 100 ? '今天全部完成 🎉' : p >= 50 ? '过半了，保持' : '今天才刚开始';
@@ -1805,7 +1836,7 @@ function cardRecur(s){
   var h = s.habit;
   if(!h.items.length){
     return '<div class="card"><h3>习惯稳定度</h3>'
-         + '<div class="empty-stat">还没有日度或周期待办。<br>新建后这里会统计你有没有坚持住。</div></div>';
+         + '<div class="empty-stat">还没有日度或周期习惯。<br>新建后这里会统计你有没有坚持住。</div></div>';
   }
   var rows = h.items.map(function(r){
     var notDue = (r.rate === null);            // 周期项还没到第一个周期
@@ -1873,25 +1904,50 @@ function cardEventByEach(s){
 
   var rows = list.map(function(x){
     var p = x.n ? Math.round(x.n / max * 100) : 0;
-    var col = x.star >= 4 ? QCOLORS[2] : (x.star >= 2 ? 'var(--accent)' : QCOLORS[3]);
-    var meta = [];
-    meta.push('窗口 <b>' + x.n + '</b> 次');
-    meta.push('累计 ' + x.total + ' 次');
-    if(x.notes) meta.push('写了 ' + x.notes + ' 条');
-    if(x.last === null) meta.push('还没记过');
-    else if(x.restDays === 0) meta.push('今天记过');
-    else meta.push(x.restDays + ' 天没记');
+    /* 颜色表示「这件事近期还在不在做」，不是数值大小 */
+    var col = x.n === 0 ? QCOLORS[3] : (x.n >= 2 || x.restDays === 0 ? QCOLORS[2] : 'var(--accent)');
+
+    /* 把「次数」翻成人话：多久一次、上次什么时候、比前半程多还是少 */
+    var freq;
+    if(x.n === 0 && x.last === null)      freq = '一次都还没记过';
+    else if(x.n === 0)                    freq = '这段时间没做过';
+    else if(x.n === 1)                    freq = '这段里只做过 1 次';
+    else {
+      var span = Math.max(1, Math.round((dayStart(Date.now()) - dayStart(x.firstInWin)) / DAY) + 1);
+      freq = '平均 ' + gapText(span / x.n) + '一次';
+    }
+    if(x.last !== null){
+      freq += '，上次是 ' + (x.restDays === 0 ? '今天' : x.restDays + ' 天前');
+    }
+    var trend = '';
+    if(x.older + x.newer >= 2){
+      trend = x.newer > x.older ? '　↑ 后半程更勤（' + x.older + '→' + x.newer + '）'
+            : x.newer < x.older ? '　↓ 后半程变少（' + x.older + '→' + x.newer + '）'
+            : '　→ 前后持平';
+    }
     return '<div class="rstab"><div class="top">'
          +   '<span class="nm">' + esc(x.name) + (x.star ? ' <span class="st-mini">' + starText(x.star) + '</span>' : '') + '</span>'
-         +   '<span class="pct">' + x.n + ' / ' + x.total + '</span></div>'
+         +   '<span class="pct">' + (x.total ? x.n + ' / ' + x.total + ' 次' : '—') + '</span></div>'
          + '<span class="track" style="display:block;height:13px;background:var(--bg);border-radius:7px;overflow:hidden">'
          +   '<span class="fill" style="display:block;height:100%;width:' + p + '%;background:' + col + ';border-radius:7px"></span></span>'
-         + '<div class="hint" style="margin-top:5px">' + meta.join(' · ') + '</div>'
+         + '<div class="hint" style="margin-top:5px">' + freq + trend + '</div>'
          + '</div>';
   }).join('');
-  return '<div class="card"><h3>每个事件<span class="sub">窗口内 / 累计</span></h3>'
+  return '<div class="card"><h3>每个事件<span class="sub">多久做一次 · 和上段时间比</span></h3>'
        + rows
-       + '<div class="hint">长条长度 = 窗口内次数相对最多的那个；灰条表示这个事件在窗口内没有记录。</div></div>';
+       + '<div class="hint">绿色 = 这段时间还在坚持；蓝色 = 做得少；灰条 = 这段时间完全没记录。'
+       + '右边 <b>窗口 / 累计</b> 分别是选定时段内和从建事件到现在的次数。</div></div>';
+}
+
+/* 把「平均间隔多少天」说成人话 */
+function gapText(gapDays){
+  if(gapDays < 1.2) return '每天';
+  if(gapDays < 2)   return '隔天';
+  if(gapDays < 7)   return Math.round(gapDays) + ' 天';
+  if(gapDays < 13)  return '每周';
+  if(gapDays < 25)  return '每两周';
+  if(gapDays < 45)  return '每月';
+  return Math.round(gapDays / 30) + ' 个月';
 }
 
 /* 写过的内容：把各事件里的心得集中起来看 */
@@ -2279,7 +2335,7 @@ function switchTab(tab){
   document.getElementById('btnEventAdd').classList.toggle('hidden', tab !== 'event');
   document.getElementById('pageTitle').textContent =
     tab === 'home' ? '佳木的待办助手'
-    : tab === 'recur' ? '周期待办'
+    : tab === 'recur' ? '习惯'
     : tab === 'event' ? '事件'
     : '数据统计';
   if(tab === 'recur') renderRecur();
@@ -2350,6 +2406,8 @@ document.getElementById('fEventName').addEventListener('keydown', function(ev){
 /* 数据管理 */
 /* 数据管理菜单里的两个入口 */
 var GUIDE_URL = 'https://cdyforever.github.io/how-to-live-better/';
+var FITNESS_URL = 'https://bel1eff-0228.github.io/How-to-Train-Better/#reading-hub';
+var FITNESS_REPO = 'https://github.com/Bel1eff-0228/How-to-Train-Better';
 var SUGGEST_MAIL = '3357814092@qq.com';
 
 function menuInfoHTML(which){
@@ -2362,13 +2420,47 @@ function menuInfoHTML(which){
       + '<p style="font-size:12px">⚠️ 内容只是资料汇编，<b>不是医嘱</b>。健康、用药、急救、法律、钱的事请找专业人士；'
       + '<b>紧急情况直接打 120</b>。</p></div>';
   }
+  if(which === 'fitness'){
+    return '<div class="ib"><h4>高性价比健身指南</h4>'
+      + '<p>把研究证据翻成看得懂、用得上的训练方法，面向新手到进阶。'
+      + '涵盖<b>力量、有氧、饮食、恢复、补剂</b>五块，支持网页检索和离线阅读。</p>'
+      + '<p><a href="' + FITNESS_URL + '" target="_blank" rel="noopener">👉 打开指南 ' + FITNESS_URL + '</a></p>'
+      + '<p style="font-size:12px">原项目：<a href="' + FITNESS_REPO + '" target="_blank" rel="noopener">'
+      + FITNESS_REPO + '</a>（作者栗子豪，★43）。本站只放链接，不转载它的内容。</p>'
+      + '<p style="font-size:12px">⚠️ 同样是资料汇编，<b>不是医嘱，也不能替代教练</b>。'
+      + '有伤病、慢性病，或不确定自己能不能练某个动作，先问医生或康复师。</p></div>';
+  }
+  if(which === 'usage'){
+    return '<div class="ib"><h4>这个工具是干什么的</h4>'
+      + '<p>它不是又一个「待办清单」。它是把<b>三类完全不同的事分开管</b>，'
+      + '因为它们的「成功」根本不是一回事：</p>'
+      + '<p><b>📋 待办</b>（主页四象限）—— 做完就结束的事。按「重要 / 紧急」自动归位，'
+      + '距截止不到 24 小时自动跳到紧急那边。看的是<b>你有多少事在手上、有多少已经逾期</b>。</p>'
+      + '<p><b>🔄 习惯</b>（习惯页）—— 要反复做的事。每天或每隔 N 天在凌晨 4 点自动刷新，'
+      + '记录连续天数和历史最长连击。看的是<b>你有没有坚持住</b>。</p>'
+      + '<p><b>🏊 事件</b>（事件页）—— 只记次数和心得的事。每做一次记一条，可以顺手写下这次的感受和下次的改进。'
+      + '看的是<b>你多久做一次、每次有什么进步</b>。</p>'
+      + '<h4 style="margin-top:14px">为什么这样分</h4>'
+      + '<p>如果混在一起，习惯每天打一次卡会被算成「新增完成」，一个月下来「净流入」「重要不紧急占比」这些数字全部失真。'
+      + '分开之后每套指标各自成立。</p>'
+      + '<h4 style="margin-top:14px">用得久的三个好处</h4>'
+      + '<p><b>① 看得见积累。</b>「今年游了 40 次」「连续 30 天没断」——这种数字单靠记忆是攒不出来的。</p>'
+      + '<p><b>② 知道该舍什么。</b>逾期率和四象限分布会告诉你是不是一直在救火、长期事项被压后了多久。</p>'
+      + '<p><b>③ 数据在你自己手里。</b>全部存在手机浏览器里，不上传服务器；'
+      + '可以导出备份，也可以导出成 Markdown 交给 AI 帮你分析。</p>'
+      + '<h4 style="margin-top:14px">一些设计取舍</h4>'
+      + '<p>· 「一天」的分界线是<b>凌晨 4 点</b>，不是 0 点——熬夜到两三点打卡仍算当天。</p>'
+      + '<p>· 统计页只留有用的卡片，趋势图那类看着热闹但不指导决策的，删掉了。</p>'
+      + '<p>· 每点一次 ＋ 记一次事件，会自动记下时间，你只管补内容。</p>'
+      + '</div>';
+  }
   return '<div class="ib"><h4>提建议</h4>'
     + '<p>用着哪里别扭、想要什么功能、发现哪里算错了，都可以写信告诉我。</p>'
     + '<p>把要说的话发到：</p>'
     + '<p class="mail">' + SUGGEST_MAIL + '</p>'
     + '<p>写清楚这几点我会更好处理：</p>'
     + '<p>1. <b>你想要的或遇到的问题</b>（一句话说清）<br>'
-    + '2. <b>在哪个页面</b>（主页 / 周期待办 / 事件 / 数据统计）<br>'
+    + '2. <b>在哪个页面</b>（待办 / 习惯 / 事件 / 数据统计）<br>'
     + '3. 如果有截图，附上一张</p>'
     + '<p>不保证每条都改，但每条都会看。</p></div>';
 }
@@ -2378,7 +2470,9 @@ function showMenuInfo(which){
   box.classList.remove('hidden');
   box.scrollIntoView({ block: 'nearest' });
 }
+document.getElementById('btnGuide').addEventListener('click', function(){ showMenuInfo('usage'); });
 document.getElementById('btnGuideLink').addEventListener('click', function(){ showMenuInfo('guide'); });
+document.getElementById('btnFitnessLink').addEventListener('click', function(){ showMenuInfo('fitness'); });
 document.getElementById('btnSuggest').addEventListener('click', function(){ showMenuInfo('suggest'); });
 
 document.getElementById('btnMenu').addEventListener('click', function(){
@@ -2422,27 +2516,126 @@ document.getElementById('btnCopy').addEventListener('click', function(){
     prompt('复制下面的内容保存：', txt);
   }
 });
-/* 屏幕诊断：把结果发回来就能精确定位显示问题 */
-document.getElementById('btnDiag').addEventListener('click', function(){
-  var probe = document.createElement('div');
-  probe.style.cssText = 'position:fixed;top:0;left:0;width:1px;visibility:hidden;height:env(safe-area-inset-top,0px)';
-  document.body.appendChild(probe);
-  var insetTop = Math.round(probe.getBoundingClientRect().height);
-  probe.style.height = 'env(safe-area-inset-bottom,0px)';
-  var insetBottom = Math.round(probe.getBoundingClientRect().height);
-  probe.remove();
+/* 导出 Markdown 给 AI 分析：把原始数据整理成 AI 读得懂的样子 */
+function exportForAI(){
+  var now = Date.now();
+  var L = [];
+  var act = active();
+  var quad = [[],[],[],[]], recurDaily = [], recurInterval = [], recurSomeday = [];
+  act.forEach(function(t){
+    if(isRecur(t)){
+      if(t.recurring === 'daily') recurDaily.push(t);
+      else if(t.recurring === 'interval') recurInterval.push(t);
+      else recurSomeday.push(t);
+    }else quad[quadOf(t)].push(t);
+  });
 
-  var bar = document.querySelector('.topbar');
-  var standalone = window.matchMedia ? window.matchMedia('(display-mode: standalone)').matches : false;
-  alert('【屏幕诊断】把这段发给我\n'
-    + 'innerHeight: ' + window.innerHeight + '\n'
-    + 'visualViewport: ' + (window.visualViewport ? Math.round(window.visualViewport.height) : '不支持') + '\n'
-    + 'screen.height: ' + (window.screen ? window.screen.height : '?') + '\n'
-    + 'body 实际高度: ' + Math.round(document.body.getBoundingClientRect().height) + '\n'
-    + '顶栏距屏幕顶: ' + (bar ? Math.round(bar.getBoundingClientRect().top) : '?') + '\n'
-    + '安全区 上/下: ' + insetTop + ' / ' + insetBottom + '\n'
-    + '独立窗口模式: ' + (standalone ? '是' : '否') + '\n'
-    + '设备像素比: ' + window.devicePixelRatio);
+  function stars(v){ var s = starText(v); return s ? s : '未打星'; }
+  function when(ts){ if(!ts) return '无'; var d2 = new Date(ts);
+    return d2.getFullYear()+'-'+p2(d2.getMonth()+1)+'-'+p2(d2.getDate())+' '+p2(d2.getHours())+':'+p2(d2.getMinutes()); }
+
+  L.push('# 我的待办数据（导出给 AI 分析用）');
+  L.push('');
+  L.push('导出时间：' + when(now));
+  L.push('');
+  L.push('> 这是个人待办工具导出的原始数据。请帮我分析时间分配、习惯坚持情况和值得注意的模式。');
+  L.push('');
+  L.push('## 一、待办事项（四象限）');
+  L.push('');
+  L.push('共 ' + (act.length - recurDaily.length - recurInterval.length - recurSomeday.length) + ' 条，分四个象限。');
+  L.push('');
+  ['重要且紧急','不重要但紧急','重要不紧急','不重要不紧急'].forEach(function(name, q){
+    L.push('### ' + name + '（' + quad[q].length + ' 条）');
+    L.push('');
+    if(!quad[q].length){ L.push('（空）'); L.push(''); return; }
+    L.push('| 内容 | 状态 | 重要程度 | 截止 | 创建 | 完成 |');
+    L.push('|---|---|---|---|---|---|');
+    quad[q].forEach(function(t){
+      L.push('| ' + t.content.replace(/\|/g,'\\|') + ' | ' + (t.done?'已完成':'未完成')
+        + ' | ' + stars(t.star) + ' | ' + when(t.dueAt) + ' | ' + when(t.createdAt)
+        + ' | ' + (t.done ? when(t.doneAt) : '—') + ' |');
+    });
+    L.push('');
+  });
+  var doneTodo = quad.reduce(function(a, arr){ return a.concat(arr.filter(function(t){ return t.done; })); }, []);
+  var pendTodo = quad.reduce(function(a, arr){ return a.concat(arr.filter(function(t){ return !t.done; })); }, []);
+  L.push('小结：未完成 ' + pendTodo.length + ' 条，已完成 ' + doneTodo.length + ' 条，'
+    + '其中逾期 ' + pendTodo.filter(isOverdue).length + ' 条。');
+  L.push('');
+
+  /* 连击要从 habitStats 拿（它内部才算得出来），先建一张 id → 连击 的表 */
+  var today0 = dayStart(now);
+  var hs = habitStats(ui.days, today0, now);
+  var streakOf = {};
+  if(hs && hs.items){
+    hs.items.forEach(function(it, i){
+      var t = (recurDaily.concat(recurInterval))[i];
+      if(t) streakOf[t.id] = { cur: it.cur, best: it.best };
+    });
+  }
+
+  L.push('## 二、习惯（周期待办）');
+  L.push('');
+  function habitBlock(title, list){
+    L.push('### ' + title + '（' + list.length + ' 条）');
+    L.push('');
+    if(!list.length){ L.push('（空）'); L.push(''); return; }
+    list.forEach(function(t){
+      var span = Math.max(0, Math.round((dayStart(now) - dayStart(t.createdAt || now)) / DAY));
+      var n = intervalOf(t);
+      var expect = t.recurring === 'daily' ? Math.max(1, span + 1) : Math.floor(span / n);
+      var did = (t.doneCount != null) ? t.doneCount : 0;
+      var rate = expect ? Math.min(100, Math.round(did / expect * 100)) : 0;
+      L.push('- **' + t.content + '**（' + stars(t.star) + '）');
+      L.push('  - 建立：' + when(t.createdAt) + '，已存在 ' + span + ' 天');
+      L.push('  - 完成 ' + did + ' 次 / 应完成约 ' + expect + ' 次 = **' + rate + '%**');
+      if(t.recurring === 'daily'){
+        var sk = streakOf[t.id] || { cur:0, best:0 };
+        L.push('  - 当前连续 ' + sk.cur + ' 天，历史最长 ' + sk.best + ' 天');
+      }
+      L.push('  - 当前状态：' + (t.done ? '今天已完成' : '今天未完成'));
+    });
+    L.push('');
+  }
+  habitBlock('每日', recurDaily);
+  habitBlock('每 N 天', recurInterval);
+  habitBlock('长期（不刷新）', recurSomeday);
+
+  /* 连击：算一次填进上面的输出里 */
+  L.push('## 三、事件（每次发生一条记录）');
+  L.push('');
+  var evs = activeEvents();
+  if(!evs.length){ L.push('（还没有事件）'); L.push(''); }
+  evs.forEach(function(e){
+    var list = eventEntries(e).slice().sort(function(a,b){ return b.at - a.at; });
+    L.push('### ' + e.name + '（' + stars(e.star) + '，共 ' + list.length + ' 次）');
+    L.push('');
+    if(!list.length){ L.push('（还没有记录）'); L.push(''); return; }
+    var first = list[list.length-1].at, last = list[0].at;
+    var spanDays = Math.max(1, Math.round((dayStart(last) - dayStart(first)) / DAY) + 1);
+    L.push('时间跨度：' + when(first) + ' ～ ' + when(last) + '（' + spanDays + ' 天，平均 '
+      + (Math.round(list.length / spanDays * 100) / 100) + ' 次/天）');
+    L.push('');
+    list.forEach(function(it){
+      L.push('- ' + when(it.at) + (it.note ? '　' + it.note.replace(/\n/g,' ') : ''));
+    });
+    L.push('');
+  });
+
+  L.push('## 四、请帮我分析');
+  L.push('');
+  L.push('1. 我的时间分配合理吗？四象限分布说明什么？');
+  L.push('2. 哪些习惯在退步？按完成率和最近中断情况排个序。');
+  L.push('3. 事件记录里有没有反复出现的问题或进步？');
+  L.push('4. 有没有我忽略的模式，或者该砍掉的事？');
+  L.push('');
+
+  var md = L.join('\n');
+  download('待办数据-AI分析-' + toDateInput(now) + '.md', md, 'text/markdown');
+  showToast('已导出 Markdown，交给 AI 时把文件内容贴进去就行');
+}
+document.getElementById('btnExportAI').addEventListener('click', function(){
+  try{ exportForAI(); }catch(e){ alert('导出失败：' + e.message); }
 });
 
 /* 自动快照：手动触发一次留档（清空、恢复之前用） */
