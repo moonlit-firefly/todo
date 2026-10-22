@@ -1448,8 +1448,14 @@ function weekBuckets(includeDone){
   active().forEach(function(t){
     if(!includeDone && t.done) return;
     if(!t.dueAt){
-      /* 无期限里只放还没做的；已完成且没日期的没必要再占「待安排」 */
-      if(!t.done && (isTask(t) || isVision(t))) b.none.push(t);
+      /* 日度 / 周期习惯本来就没有截止日期，但「这一轮还没做」就是今天该做的：
+         放进「今日待办」，否则未完成页永远看不到它们，只剩已完成页里的历史打卡。 */
+      if(isHabit(t)){
+        b.today.push(t);
+        return;
+      }
+      /* 无期限只收没排期的任务；愿景留在「习惯 → 愿景」页，除非设了截止日期 */
+      if(!t.done && isTask(t)) b.none.push(t);
       return;
     }
     if(t.dueAt < now + DAY) b.today.push(t);
@@ -1538,7 +1544,7 @@ function renderWeek(){
       ui.sub === 'plan' ? '这一周没有安排。' : '这一周没有未完成的任务。', true);
   }else{
     var b = weekBuckets(ui.sub === 'plan');
-    html += sectionHTML('今日待办', '24 小时内', b.today,
+    html += sectionHTML('今日待办', '含当天习惯', b.today,
       ui.sub === 'plan' ? '今天没有安排。' : '今天没有到期的任务。', true);
     html += sectionHTML('周度待办', '本周末前', b.week, '本周剩下的时间没有安排。', true);
     if(ui.sub === 'plan'){
