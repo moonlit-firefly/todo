@@ -189,6 +189,63 @@ input,textarea{font:inherit;color:var(--text)}
 .heat{display:grid;grid-template-columns:repeat(auto-fill,minmax(11px,1fr));gap:3px}
 .hcell{aspect-ratio:1;border-radius:3px;display:block}
 
+/* ---------- 周度页 ---------- */
+.weekbar{display:flex;align-items:center;gap:1px;padding:0 8px 6px;flex:none}
+.wk-nav{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;color:var(--accent);font-size:18px;flex:none}
+.wk-nav:active{background:var(--line)}
+.wk-label{flex:1;min-width:0;text-align:center;font-size:13px;font-weight:650;letter-spacing:.1px;line-height:1.3}
+.wk-label small{display:block;font-size:10.5px;color:var(--muted);font-weight:400}
+.wk-label .now{color:var(--accent);font-weight:600}
+.wk-tools{display:flex;gap:1px;flex:none}
+.wk-tools .iconbtn{width:32px;height:32px;font-size:15px}
+.wsec{margin:0 14px 14px}
+.wsec-head{display:flex;align-items:center;gap:7px;padding:3px 0 8px}
+.wsec-head h3{margin:0;font-size:13px;font-weight:700;letter-spacing:.1px}
+.wsec-head .cnt{font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.wsec-head .ln{flex:1;height:1px;background:var(--line)}
+.wsec .rlist{margin:0}
+.wk-empty{padding:16px 12px;text-align:center;font-size:12.5px;color:var(--muted);
+  background:var(--card);border-radius:var(--r);line-height:1.6}
+.kind{display:inline-block;font-size:10px;line-height:1.6;padding:0 5px;border-radius:4px;margin-right:5px;
+  vertical-align:1px;background:var(--bg);color:var(--muted);font-weight:600}
+.kind.habit{color:var(--accent);background:rgba(10,132,255,.12)}
+.kind.vision{color:#af52de;background:rgba(175,82,222,.12)}
+.done-when{font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* ---------- 日历抽屉 ---------- */
+.cal-mask{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:110}
+.cal-drawer{position:fixed;top:0;right:0;bottom:0;width:min(90vw,352px);background:var(--card);z-index:120;
+  transform:translateX(102%);transition:transform .22s cubic-bezier(.32,.72,0,1);
+  display:flex;flex-direction:column;box-shadow:-10px 0 30px rgba(0,0,0,.16);
+  padding-top:calc(env(safe-area-inset-top,0px) + 8px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 6px)}
+.cal-drawer.on{transform:translateX(0)}
+.cal-head{display:flex;align-items:center;gap:1px;padding:6px 6px 10px}
+.cal-head b{flex:1;text-align:center;font-size:15px}
+.cal-head .iconbtn{width:34px;height:34px;font-size:16px}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:0 10px;font-size:10.5px;color:var(--muted)}
+.cal-dow span{text-align:center;padding:3px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:2px 10px}
+.cal-cell{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:11.5px;font-variant-numeric:tabular-nums;position:relative;background:transparent}
+.cal-cell.blank{visibility:hidden}
+.cal-cell .dd{line-height:1}
+.cal-cell .dn{font-size:8.5px;line-height:1;margin-top:2px;opacity:.8}
+.cal-cell.sel{outline:2px solid var(--accent);outline-offset:-2px}
+.cal-cell.today .dd{font-weight:800;color:var(--accent)}
+.cal-cell.sel.today .dd{color:inherit}
+.cal-foot{flex:1;min-height:0;overflow-y:auto;padding:12px 12px 0;border-top:1px solid var(--line);margin-top:10px}
+.cal-sum{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:4px}
+.cal-sum div{background:var(--bg);border-radius:9px;padding:8px 4px;text-align:center}
+.cal-sum b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+.cal-sum span{font-size:10.5px;color:var(--muted)}
+.cal-sub{font-size:11.5px;color:var(--muted);margin:14px 0 4px;font-weight:650;letter-spacing:.3px}
+.cal-habit{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+.cal-habit:last-child{border-bottom:0}
+.cal-habit span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cal-habit b{flex:none;font-variant-numeric:tabular-nums;color:var(--accent)}
+.cal-btn{width:100%;margin-top:14px;padding:11px;border-radius:10px;background:var(--bg);font-size:13.5px;font-weight:650;color:var(--accent)}
+.cal-btn:active{opacity:.7}
+
 /* ---------- 底部标签栏 ---------- */
 .tabbar{display:flex;flex:none;border-top:1px solid var(--line);background:var(--card);padding-bottom:env(safe-area-inset-bottom,0px)}
 .tabbar button{flex:1;padding:9px 0 10px;font-size:11.5px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -276,6 +333,7 @@ input,textarea{font:inherit;color:var(--text)}
 
 <div class="topbar">
   <h1 id="pageTitle">佳木的待办助手</h1>
+  <button class="iconbtn hidden" id="btnWeekAdd" aria-label="新建任务" style="color:var(--accent);font-size:24px;font-weight:300">＋</button>
   <button class="iconbtn hidden" id="btnRecurAdd" aria-label="新建习惯">＋</button>
   <button class="iconbtn hidden" id="btnEventAdd" aria-label="新建事件">＋</button>
   <button class="iconbtn" id="btnMenu" aria-label="数据管理">⋯</button>
@@ -284,15 +342,25 @@ input,textarea{font:inherit;color:var(--text)}
 <div id="storeWarn" class="warnbar hidden"></div>
 <div id="corruptWarn" class="warnbar danger hidden"></div>
 
-<!-- ========== 主页（含内嵌的人生指南子页） ========== -->
-<div class="page" id="page-home">
-  <div class="seg" id="segHome">
-    <button data-sub="pending" class="on">待完成</button>
+<!-- ========== 周度主页 ========== -->
+<div class="page" id="page-week">
+  <div class="weekbar">
+    <button class="wk-nav" data-week-nav="-1" aria-label="上一周">‹</button>
+    <div class="wk-label" id="weekLabel">本周</div>
+    <button class="wk-nav" data-week-nav="1" aria-label="下一周">›</button>
+    <div class="wk-tools">
+      <button class="iconbtn" id="btnWeekCal" aria-label="日历">📅</button>
+      <button class="iconbtn" id="btnMonthPage" aria-label="月度">月</button>
+    </div>
+  </div>
+
+  <div class="seg" id="segWeek">
+    <button data-sub="plan">规划</button>
+    <button data-sub="pending" class="on">未完成</button>
     <button data-sub="done">已完成</button>
   </div>
 
-  <!-- 四象限视图 -->
-  <div class="grid" id="grid"></div>
+  <div class="scrollarea" id="weekBody"></div>
 </div>
 
 <!-- ========== 周期待办 ========== -->
@@ -300,7 +368,7 @@ input,textarea{font:inherit;color:var(--text)}
   <div class="seg" id="segRecur">
     <button data-rtype="daily" class="on">日度</button>
     <button data-rtype="interval">周期</button>
-    <button data-rtype="someday">长期</button>
+    <button data-rtype="someday">愿景</button>
   </div>
   <div class="scrollarea" id="recurScroll">
     <div class="rlist" id="recurList"></div>
@@ -316,7 +384,7 @@ input,textarea{font:inherit;color:var(--text)}
     <button data-days="90">近 90 天</button>
   </div>
   <div class="seg" id="segStats">
-    <button data-stats="quad" class="on">四象限</button>
+    <button data-stats="task" class="on">任务</button>
     <button data-stats="habit">习惯</button>
     <button data-stats="event">事件</button>
   </div>
@@ -363,51 +431,55 @@ input,textarea{font:inherit;color:var(--text)}
   </div>
 </div>
 
-<!-- ========== 象限详情 ========== -->
-<div class="screen hidden" id="screenQuad">
+<!-- ========== 月度页面 ========== -->
+<div class="screen hidden" id="screenMonth">
   <div class="screen-head">
-    <button class="back" data-close="screenQuad">‹ 返回</button>
-    <h2 id="quadTitle">象限</h2>
-    <button class="iconbtn" id="quadAdd" style="color:var(--accent)" aria-label="新建待办">＋</button>
+    <button class="back" data-close="screenMonth">‹ 返回</button>
+    <h2 id="monthTitle">月度</h2>
+    <button class="wk-nav" data-month-nav="-1" aria-label="上个月">‹</button>
+    <button class="wk-nav" data-month-nav="1" aria-label="下个月">›</button>
   </div>
-  <div class="screen-body" id="quadBody"></div>
+  <div class="screen-body" id="monthBody"></div>
 </div>
+
+<!-- ========== 右侧日历抽屉 ========== -->
+<div class="cal-mask hidden" id="calMask"></div>
+<aside class="cal-drawer" id="calDrawer" aria-label="日历">
+  <div class="cal-head">
+    <button class="wk-nav" data-cal-nav="-1" aria-label="上个月">‹</button>
+    <b id="calTitle">—</b>
+    <button class="wk-nav" data-cal-nav="1" aria-label="下个月">›</button>
+    <button class="iconbtn" id="calClose" aria-label="关闭">✕</button>
+  </div>
+  <div class="cal-dow" id="calDow"></div>
+  <div class="cal-grid" id="calGrid"></div>
+  <div class="cal-foot" id="calFoot"></div>
+</aside>
 
 <!-- ========== 编辑弹层 ========== -->
 <div class="mask hidden" id="maskEdit">
   <div class="sheet" id="sheetEdit">
     <div class="sheet-grip"></div>
-    <h2 id="editTitle">新建待办</h2>
+    <h2 id="editTitle">新建任务</h2>
 
     <div class="field">
-      <label>待办内容</label>
-      <textarea id="fContent" placeholder="要做什么？"></textarea>
+      <label>内容</label>
+      <textarea id="fContent" placeholder="要做的事 / 习惯 / 愿景？"></textarea>
     </div>
 
     <div class="field">
       <label>重复方式</label>
       <div class="chips wrap" id="recurChips">
-        <div class="chip on" data-r="none">不重复</div>
-        <div class="chip" data-r="daily">每天刷新</div>
-        <div class="chip" data-r="interval">每 N 天刷新</div>
-        <div class="chip" data-r="someday">长期（以后再做）</div>
+        <div class="chip on" data-r="none">不重复（任务）</div>
+        <div class="chip" data-r="daily">每天刷新的习惯</div>
+        <div class="chip" data-r="interval">每 N 天刷新的习惯</div>
+        <div class="chip" data-r="someday">愿景（长期方向）</div>
       </div>
     </div>
 
     <div class="field hidden" id="intervalField">
       <label>每隔多少天刷新为未完成</label>
       <input type="number" id="fInterval" min="1" max="365" value="3" inputmode="numeric">
-    </div>
-
-    <div class="field" id="impUrgField">
-      <label>属性（决定它属于哪个象限）</label>
-      <div class="chips">
-        <div class="chip" id="chipImp">重要</div>
-        <div class="chip warn" id="chipUrg">紧急</div>
-      </div>
-      <div class="hint hidden" id="autoUrgHint" style="margin-top:8px">
-        ⚡ 距离截止不足 24 小时，保存后会<b>自动按「紧急」处理</b>，出现在左上象限。把截止时间改远就会自动恢复。
-      </div>
     </div>
 
     <div class="field">
@@ -510,7 +582,7 @@ input,textarea{font:inherit;color:var(--text)}
 
 <!-- ========== 底部标签栏 ========== -->
 <nav class="tabbar" id="tabbar">
-  <button data-tab="home" class="on"><span class="ic">☑</span>待办</button>
+  <button data-tab="week" class="on"><span class="ic">🗓</span>周度</button>
   <button data-tab="recur"><span class="ic">🔄</span>习惯</button>
   <button data-tab="event"><span class="ic">🏊</span>事件</button>
   <button data-tab="stats"><span class="ic">📊</span>数据统计</button>
@@ -557,21 +629,26 @@ var QUADS = [
 var SHORT_Q = ['重要紧急','不重要紧急','重要不紧急','不重要不紧急'];
 
 var RTYPES = {
-  daily:   {label:'日度待办', empty:'还没有日度待办', tip:'每天<b>凌晨 4 点</b>后自动刷新为未完成。<br>凌晨 4 点之前算前一天，熬夜到两三点打卡也算当天。<br>比如「每天喝水 2L」「每天读 30 分钟」'},
-  interval:{label:'周期待办', empty:'还没有周期待办', tip:'按你设定的天数，在<b>凌晨 4 点</b>刷新。<br>比如「每 3 天浇花」「每 7 天复盘」'},
-  someday: {label:'长期待办', empty:'还没有长期待办', tip:'想做、但当下不方便或还不合适的事。<br>以后有机会再做，或当作一个长期的方向。'}
+  daily:   {label:'日度习惯', empty:'还没有日度习惯', tip:'每天<b>凌晨 4 点</b>后自动刷新为未完成。<br>凌晨 4 点之前算前一天，熬夜到两三点打卡也算当天。<br>比如「每天喝水 2L」「每天读 30 分钟」'},
+  interval:{label:'周期习惯', empty:'还没有周期习惯', tip:'按你设定的天数，在<b>凌晨 4 点</b>刷新。<br>比如「每 3 天浇花」「每 7 天复盘」'},
+  someday: {label:'愿景', empty:'还没有愿景', tip:'长期的方向，不设完成期限，也不会自动刷新。<br>比如「跑一次半马」「学会一门乐器」。<br>需要时可以在截止日期里给它排一个具体时间。'}
 };
 
 /* ============ 状态 ============ */
 /* events 从 v10 起存在；老数据可能只有 todos/log，读时补空表 */
 var db = { version:2, todos:[], log:[], events:[], eventsSeeded:false };
-var ui = { tab:'home', sub:'pending', quad:null, rtype:'daily', days:7, stats:'quad' };
+var ui = {
+  tab:'week', sub:'pending', rtype:'daily', days:7, stats:'task',
+  weekOffset:0,        // 0 = 本周，-1 = 上一周
+  monthOffset:0,       // 月度页相对当前月的偏移
+  calMonth:null        // 日历抽屉正在看的月份（当月 1 号 4:00 的时间戳）
+};
 var storageOK = true;
 var editingId = null;
 var editingEventId = null;
 var editingEntryEventId = null;
 var editingEntryIndex = null;
-var draft = { imp:true, urg:true, recur:'none', intervalDays:3, star:0, evStar:0 };
+var draft = { recur:'none', intervalDays:3, star:0, evStar:0 };
 
 /* ============ 存储 ============ */
 var corruptRaw = null;      // 读取失败时保留的原始内容（绝不静默丢弃）
@@ -1001,8 +1078,8 @@ function download(filename, text, mime){
 function logEvent(type, t){
   if(!db.log) db.log = [];
   var rec = (t.recurring && t.recurring !== 'none') ? t.recurring : null;
-  // 周期待办不属于四象限，q 记 null，避免污染象限统计
-  db.log.push({ at: Date.now(), type: type, id: t.id, q: rec ? null : quadOf(t), recur: rec });
+  // 任务不再分象限，q 统一记 null；保留字段只是为了兼容旧日志
+  db.log.push({ at: Date.now(), type: type, id: t.id, q: null, recur: rec });
   if(db.log.length > LOG_MAX) db.log = db.log.slice(-Math.round(LOG_MAX * 0.8));
 }
 /* 数据升级（每次启动都跑，幂等） */
@@ -1167,6 +1244,68 @@ function fmtDur(h){
 }
 function mmdd(ts){ var d=new Date(ts); return (d.getMonth()+1)+'/'+d.getDate(); }
 
+/* ============ 分类与周 / 月边界 ============ */
+/* 三类东西共用一张 notes 表（老数据也在这），靠 recurring 区分：
+   task = 做完就结束的事项；habit = 日度/周期习惯；vision = 原来的「长期」。 */
+function isVision(t){ return t.recurring === 'someday'; }
+function isHabit(t){ return t.recurring === 'daily' || t.recurring === 'interval'; }
+function isTask(t){ return !isRecur(t); }
+function kindOf(t){ return isVision(t) ? 'vision' : isHabit(t) ? 'habit' : 'task'; }
+function kindLabel(t){ return isVision(t) ? '愿景' : isHabit(t) ? '习惯' : '待办'; }
+function kindTag(t){
+  var k = kindOf(t);
+  return k === 'task' ? '' : '<span class="kind ' + k + '">' + kindLabel(t) + '</span>';
+}
+
+/* 一周从「周一凌晨 4 点」开始，与一天的 4 点分界保持一致 */
+function weekStartOf(ts){
+  var s = dayStart(ts);
+  var d = new Date(s);
+  var wd = (d.getDay() + 6) % 7;      // 周一 = 0，周日 = 6
+  return s - wd * DAY;
+}
+function weekStartSel(){ return weekStartOf(Date.now()) + ui.weekOffset * 7 * DAY; }
+
+function monthStartOf(ts){
+  var d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth(), 1, 4, 0, 0, 0).getTime();
+}
+function monthRangeOf(ts){
+  var d = new Date(ts);
+  return {
+    from: new Date(d.getFullYear(), d.getMonth(), 1, 4, 0, 0, 0).getTime(),
+    to:   new Date(d.getFullYear(), d.getMonth() + 1, 1, 4, 0, 0, 0).getTime()
+  };
+}
+
+/* 某段时间里「每天完成了多少条」。
+   完成记录来自 done 日志（习惯的历史只能靠它），任务的 doneAt 再补一刀；
+   按「条目 + 天」去重，勾了又取消再勾不会重复计数。 */
+function doneMapBetween(from, to){
+  var map = {}, seen = {};
+  function add(id, at){
+    if(!id) return;
+    var d = dayStart(at);
+    if(d < from || d >= to) return;
+    var k = id + '@' + d;
+    if(seen[k]) return;
+    seen[k] = 1;
+    map[d] = (map[d] || 0) + 1;
+  }
+  (db.log || []).forEach(function(e){ if(e.type === 'done') add(e.id, e.at); });
+  active().forEach(function(t){ if(t.done && t.doneAt) add(t.id, t.doneAt); });
+  return map;
+}
+
+/* 周度列表排序：星级高的在前；同星级按截止时间近的在前；再按创建时间 */
+function weekSort(a, b){
+  var d = normStar(b.star) - normStar(a.star);
+  if(d) return d;
+  var da = a.dueAt || Infinity, db2 = b.dueAt || Infinity;
+  if(da !== db2) return da - db2;
+  return (a.createdAt || 0) - (b.createdAt || 0);
+}
+
 /* ============ 周期待办：惰性结算 ============ */
 function settle(){
   var now = Date.now();
@@ -1203,7 +1342,7 @@ function recurText(t){
   if(!isRecur(t)) return null;
   if(t.recurring === 'daily') return '每天刷新';
   if(t.recurring === 'interval') return '每 ' + intervalOf(t) + ' 天刷新';
-  return '长期';
+  return '愿景';
 }
 
 /* 把毫秒差格式化成「到小时」的倒计时 */
@@ -1236,7 +1375,7 @@ function refreshCountdown(t){
 /* 截止倒计时。截止时间精确到分钟，逾期判定直接调 isOverdue，
    与统计里的 overdue 用同一个函数，不会出现两边说法不一致。 */
 function dueText(t){
-  if(!t.dueAt || isRecur(t)) return null;
+  if(!t.dueAt) return null;
   var now    = Date.now();
   var today  = dayStart(now);
   var dueDay = dayStart(t.dueAt);
@@ -1259,7 +1398,7 @@ function dueText(t){
 }
 
 /* ============ 渲染：条目 ============ */
-function itemHTML(t){
+function itemHTML(t, showKind){
   /* id 正常已由 normalizeIds 规范成安全形状；这里再兜一道，防止未来某条
      绕过迁移的路径把非法 id 直接塞进属性。 */
   var safeId = /^[A-Za-z0-9_-]{1,64}$/.test(String(t.id)) ? t.id : '';
@@ -1270,10 +1409,9 @@ function itemHTML(t){
 
   var d = dueText(t);
   if(d) metas.push('<span class="'+d.cls+'">'+esc(d.label)+'</span>');
-  if(autoUpgraded(t)) metas.push('<span class="auto">⚡ 自动紧急</span>');
 
   var r = recurText(t);
-  if(r){
+  if(r && isHabit(t)){
     var cd = refreshCountdown(t);
     metas.push('<span>'+esc(cd ? r + ' · ' + cd : r)+'</span>');
   }
@@ -1283,67 +1421,254 @@ function itemHTML(t){
   return '<div class="item'+(t.done?' done':'')+'" data-id="'+safeId+'">'
        +   '<button class="check" data-act="toggle" aria-label="切换完成"></button>'
        +   '<div class="body" data-act="edit">'
-       +     '<div class="txt">'+esc(t.content)+'</div>'
+       +     '<div class="txt">'+(showKind ? kindTag(t) : '')+esc(t.content)+'</div>'
        +     meta
        +   '</div>'
        + '</div>';
 }
 
-/* ============ 渲染：四象限主页 ============ */
-function renderGrid(){
-  var done = (ui.sub === 'done');
-  var lists = [];
-  for(var q=0; q<4; q++){
-    var list = inQuad(q, done);
-    /* 星级高的排前面；同级按截止时间近的在前，再按创建时间 */
-    list.sort(byStarThen(function(a, b){
-      var da = a.dueAt || Infinity, db2 = b.dueAt || Infinity;
-      if(da !== db2) return da - db2;
-      return (a.createdAt||0) - (b.createdAt||0);
-    }));
-    lists.push(list);
-  }
-  /* 左右两列各自分配：列内两块的权重只由本列条数决定，互不影响。
-     权重的绝对值不重要，只有同列两块的比例有意义。
-     空的那块给固定权重（它只有标题 + 一行提示），非空按「基准 + 条数」涨。 */
-  var EMPTY_W = 1.6;
-  function weights(a, b){
-    return [a > 0 ? EMPTY_W + a : EMPTY_W, b > 0 ? EMPTY_W + b : EMPTY_W];
-  }
-  var col1 = weights(lists[0].length, lists[2].length);   // 左列：Q1 / Q3
-  var col2 = weights(lists[1].length, lists[3].length);   // 右列：Q2 / Q4
-
-  function block(q, weight){
-    var list2 = lists[q];
-    var body = list2.length === 0
-      ? '<div class="q-empty">'+(done?'还没有完成的':'暂无待办')+'</div>'
-      : list2.map(itemHTML).join('');
-    return '<div class="q" style="flex-grow:'+weight+'">'
-         +   '<div class="q-head">'
-         +     '<span class="q-dot" style="background:'+QUADS[q].dot+'"></span>'
-         +     '<span class="q-title" data-act="open" data-q="'+q+'">'+QUADS[q].name
-         +       ' <span class="q-count">'+(list2.length||'')+'</span></span>'
-         +     '<button class="q-add" data-act="add" data-q="'+q+'" aria-label="新建">＋</button>'
-         +   '</div>'
-         +   '<div class="q-list" id="ql'+q+'">'+body+'</div>'
-         + '</div>';
-  }
-  document.getElementById('grid').innerHTML =
-      '<div class="qcol">' + block(0, col1[0]) + block(2, col1[1]) + '</div>'
-    + '<div class="qcol">' + block(1, col2[0]) + block(3, col2[1]) + '</div>';
+/* ============ 渲染：周度主页 ============ */
+function weekLabelText(){
+  var ws = weekStartSel(), we = ws + 6 * DAY;
+  var a = new Date(ws), b = new Date(we);
+  var right = (b.getMonth() === a.getMonth() ? '' : (b.getMonth() + 1) + '/') + b.getDate();
+  var tail = ui.weekOffset === 0 ? '· 本周'
+           : ui.weekOffset < 0 ? '· ' + Math.abs(ui.weekOffset) + ' 周前'
+           : '· ' + ui.weekOffset + ' 周后';
+  return a.getFullYear() + '年 ' + (a.getMonth() + 1) + '/' + a.getDate() + ' – ' + right + ' ' + tail;
 }
 
-/* ============ 渲染：象限详情 ============ */
-function renderQuad(){
-  var q = ui.quad;
-  if(q === null) return;
-  var done = (ui.sub === 'done');
-  var list = inQuad(q, done);
-  document.getElementById('quadTitle').textContent =
-    QUADS[q].name + ' · ' + (done ? '已完成' : '待完成') + ' (' + list.length + ')';
-  document.getElementById('quadBody').innerHTML = list.length
-    ? list.map(itemHTML).join('')
-    : '<div class="empty-stat" style="padding:70px 30px">'+(done?'这个象限还没有已完成的待办':'这个象限还没有待办')+'</div>';
+/* 把待办 / 习惯 / 愿景按截止时间分桶：
+   today = 24 小时内（含逾期）；week = 本周末前；later = 更远；none = 没设截止。
+   日度/周期习惯没有截止日期时不进「无期限」，免得每天刷新的习惯把列表淹掉。 */
+function weekBuckets(includeDone){
+  var now = Date.now();
+  var ws = weekStartSel(), we = ws + 7 * DAY;
+  var b = { today:[], week:[], later:[], none:[] };
+  active().forEach(function(t){
+    if(!includeDone && t.done) return;
+    if(!t.dueAt){
+      /* 无期限里只放还没做的；已完成且没日期的没必要再占「待安排」 */
+      if(!t.done && (isTask(t) || isVision(t))) b.none.push(t);
+      return;
+    }
+    if(t.dueAt < now + DAY) b.today.push(t);
+    else if(t.dueAt < we) b.week.push(t);
+    else b.later.push(t);
+  });
+  b.today.sort(weekSort);
+  b.week.sort(weekSort);
+  b.later.sort(weekSort);
+  b.none.sort(weekSort);
+  return b;
+}
+
+function sectionHTML(title, sub, list, empty, showKind){
+  if(!list.length && !empty) return '';
+  var body = list.length
+    ? '<div class="rlist">' + list.map(function(t){ return itemHTML(t, showKind); }).join('') + '</div>'
+    : '<div class="wk-empty">' + empty + '</div>';
+  return '<div class="wsec">'
+       +   '<div class="wsec-head"><h3>' + title + '</h3>'
+       +     (list.length ? '<span class="cnt">' + list.length + '</span>' : '')
+       +     '<span class="ln"></span>'
+       +     (sub ? '<span class="cnt">' + sub + '</span>' : '')
+       +   '</div>'
+       +   body
+       + '</div>';
+}
+
+/* 已完成的条目：任务看 doneAt，习惯看 done 日志（每天一条），所以同一个习惯
+   一周完成 5 次会出现 5 行 —— 这正是「完成次数」的来源。 */
+function doneListIn(ws, we){
+  var seen = {}, out = [];
+  function add(id, at){
+    var d = dayStart(at);
+    if(d < ws || d >= we) return;
+    var k = id + '@' + d;
+    if(seen[k]) return;
+    seen[k] = 1;
+    var t = findTodo(id);
+    if(!t || t.deleted) return;
+    out.push({ t:t, at:at });
+  }
+  (db.log || []).forEach(function(e){ if(e.type === 'done') add(e.id, e.at); });
+  active().forEach(function(t){ if(t.done && t.doneAt) add(t.id, t.doneAt); });
+  out.sort(function(a, b){ return b.at - a.at; });
+  return out;
+}
+
+function doneRowHTML(x){
+  var t = x.t, d = new Date(x.at);
+  return '<div class="item done" data-id="' + t.id + '">'
+       +   '<div class="check"></div>'
+       +   '<div class="body" data-act="edit">'
+       +     '<div class="txt">' + kindTag(t) + esc(t.content) + '</div>'
+       +     '<div class="meta"><span class="done-when">完成于 ' + mmdd(x.at) + ' '
+       +       p2(d.getHours()) + ':' + p2(d.getMinutes()) + '</span></div>'
+       +   '</div>'
+       + '</div>';
+}
+
+function renderDoneWeek(){
+  var ws = weekStartSel();
+  var list = doneListIn(ws, ws + 7 * DAY);
+  if(!list.length){
+    return '<div class="wsec"><div class="wk-empty">这一周还没有完成记录。<br>'
+         + '勾选任意一条任务 / 习惯 / 愿景，就会出现在这里。</div></div>';
+  }
+  return '<div class="wsec">'
+       +   '<div class="wsec-head"><h3>本周完成</h3><span class="cnt">' + list.length + '</span><span class="ln"></span></div>'
+       +   '<div class="rlist">' + list.map(doneRowHTML).join('') + '</div>'
+       + '</div>';
+}
+
+function renderWeek(){
+  var html = '';
+  if(ui.sub === 'done'){
+    html = renderDoneWeek();
+  }else if(ui.weekOffset !== 0){
+    /* 历史 / 未来周：只按这一周自己的日期范围看，不再用「今天」当基准 */
+    var ws0 = weekStartSel(), we0 = ws0 + 7 * DAY;
+    var list0 = active().filter(function(t){
+      if(!t.dueAt || t.dueAt < ws0 || t.dueAt >= we0) return false;
+      return ui.sub === 'plan' ? true : !t.done;
+    }).sort(weekSort);
+    html = sectionHTML('本周待办', mmdd(ws0) + ' – ' + mmdd(we0 - DAY), list0,
+      ui.sub === 'plan' ? '这一周没有安排。' : '这一周没有未完成的任务。', true);
+  }else{
+    var b = weekBuckets(ui.sub === 'plan');
+    html += sectionHTML('今日待办', '24 小时内', b.today,
+      ui.sub === 'plan' ? '今天没有安排。' : '今天没有到期的任务。', true);
+    html += sectionHTML('周度待办', '本周末前', b.week, '本周剩下的时间没有安排。', true);
+    if(ui.sub === 'plan'){
+      html += sectionHTML('待安排', '没有截止日期', b.none, '', true);
+    }else{
+      html += sectionHTML('之后', '本周以后', b.later, '', true);
+      html += sectionHTML('无期限', '还没排期', b.none, '', true);
+    }
+  }
+  document.getElementById('weekBody').innerHTML = html;
+  document.getElementById('weekLabel').textContent = weekLabelText();
+  document.querySelectorAll('#segWeek button').forEach(function(x){
+    x.classList.toggle('on', x.getAttribute('data-sub') === ui.sub);
+  });
+}
+
+/* ============ 日历：历史周的完成情况 ============ */
+function habitCountIn(t, from, to){
+  var seen = {};
+  (db.log || []).forEach(function(e){
+    if(e.type !== 'done' || e.id !== t.id) return;
+    var d = dayStart(e.at);
+    if(d < from || d >= to) return;
+    seen[d] = 1;
+  });
+  return Object.keys(seen).length;
+}
+
+function openCal(){
+  ui.calMonth = monthStartOf(weekStartSel());
+  renderCalendar();
+  document.getElementById('calMask').classList.remove('hidden');
+  document.getElementById('calDrawer').classList.add('on');
+}
+function closeCal(){
+  document.getElementById('calMask').classList.add('hidden');
+  document.getElementById('calDrawer').classList.remove('on');
+}
+
+function renderCalendar(){
+  if(!ui.calMonth) ui.calMonth = monthStartOf(weekStartSel());
+  var d = new Date(ui.calMonth);
+  var y = d.getFullYear(), m = d.getMonth();
+  document.getElementById('calTitle').textContent = y + '年' + (m + 1) + '月';
+  document.getElementById('calDow').innerHTML =
+    ['一','二','三','四','五','六','日'].map(function(x){ return '<span>' + x + '</span>'; }).join('');
+
+  var first = new Date(y, m, 1, 4, 0, 0, 0);
+  var lead = (first.getDay() + 6) % 7;
+  var days = new Date(y, m + 1, 0).getDate();
+  var from = first.getTime();
+  var to = new Date(y, m + 1, 1, 4, 0, 0, 0).getTime();
+  var map = doneMapBetween(from, to);
+
+  var max = 1;
+  Object.keys(map).forEach(function(k){ if(map[k] > max) max = map[k]; });
+
+  var ws = weekStartSel(), we = ws + 7 * DAY, today = dayStart(Date.now());
+  var cells = [];
+  for(var i = 0; i < lead; i++) cells.push('<span class="cal-cell blank"></span>');
+  for(var day = 1; day <= days; day++){
+    var ts = new Date(y, m, day, 4, 0, 0, 0).getTime();
+    var n = map[ts] || 0;
+    var a = n ? (0.16 + 0.68 * (n / max)) : 0;
+    var style = n ? 'background:rgba(10,132,255,' + a.toFixed(2) + ');color:#fff' : '';
+    var cls = 'cal-cell' + (ts >= ws && ts < we ? ' sel' : '') + (ts === today ? ' today' : '');
+    cells.push('<button class="' + cls + '" data-cal-day="' + ts + '" style="' + style + '">'
+      + '<span class="dd">' + day + '</span>'
+      + (n ? '<span class="dn">' + n + '</span>' : '')
+      + '</button>');
+  }
+  document.getElementById('calGrid').innerHTML = cells.join('');
+  renderCalFoot(from, to, map);
+}
+
+function renderCalFoot(from, to, map){
+  var items = active().filter(function(t){ return t.dueAt && t.dueAt >= from && t.dueAt < to; });
+  var plan = items.length;
+  var pending = items.filter(function(t){ return !t.done; }).length;
+  var done = 0;
+  Object.keys(map).forEach(function(k){ done += map[k]; });
+
+  var rows = active().filter(function(t){ return isHabit(t) || isVision(t); }).map(function(t){
+    var n = habitCountIn(t, from, to);
+    if(!n) return '';
+    return '<div class="cal-habit"><span>' + kindTag(t) + esc(t.content) + '</span><b>' + n + ' 次</b></div>';
+  }).filter(Boolean).join('');
+
+  document.getElementById('calFoot').innerHTML =
+      '<div class="cal-sum">'
+    +   '<div><b>' + plan + '</b><span>规划</span></div>'
+    +   '<div><b>' + pending + '</b><span>未完成</span></div>'
+    +   '<div><b>' + done + '</b><span>已完成</span></div>'
+    + '</div>'
+    + '<div class="cal-sub">本月习惯 / 愿景完成次数</div>'
+    + (rows || '<div class="hint" style="margin:0 0 4px">这个月还没有完成记录。</div>')
+    + '<button class="cal-btn" id="calToMonth">查看月度详情 ›</button>';
+}
+
+/* ============ 月度页面 ============ */
+function renderMonth(){
+  var now = new Date();
+  var anchor = new Date(now.getFullYear(), now.getMonth() + ui.monthOffset, 1);
+  var r = monthRangeOf(anchor.getTime());
+
+  var items = active().filter(function(t){ return t.dueAt && t.dueAt >= r.from && t.dueAt < r.to; });
+  var plan = items.length;
+  var pending = items.filter(function(t){ return !t.done; }).length;
+  var map = doneMapBetween(r.from, r.to);
+  var done = 0;
+  Object.keys(map).forEach(function(k){ done += map[k]; });
+
+  var habitRows = active().filter(function(t){ return isHabit(t) || isVision(t); }).map(function(t){
+    var n = habitCountIn(t, r.from, r.to);
+    if(!n) return '';
+    return '<div class="cal-habit"><span>' + kindTag(t) + esc(t.content) + '</span><b>' + n + ' 次</b></div>';
+  }).filter(Boolean).join('');
+
+  document.getElementById('monthTitle').textContent = anchor.getFullYear() + '年' + (anchor.getMonth() + 1) + '月';
+  document.getElementById('monthBody').innerHTML =
+      '<div class="tiles" style="margin-top:14px">'
+    +   '<div class="tile"><div class="v">' + plan + '</div><div class="k">规划</div></div>'
+    +   '<div class="tile' + (pending ? ' warn' : '') + '"><div class="v">' + pending + '</div><div class="k">未完成</div></div>'
+    +   '<div class="tile"><div class="v">' + done + '</div><div class="k">已完成</div></div>'
+    + '</div>'
+    + '<div class="card"><h3>习惯 / 愿景完成次数<span class="sub">本月</span></h3>'
+    +   (habitRows || '<div class="empty-stat">这个月还没有习惯或愿景的完成记录。</div>')
+    + '</div>'
+    + '<div class="hint" style="margin:0 14px 20px">「规划」= 本月有截止日期的条目数；'
+    + '「未完成」= 其中还没勾掉的；「已完成」= 本月实际完成次数（习惯每天打卡各算一次）。</div>';
 }
 
 /* ============ 渲染：周期待办 ============ */
@@ -1544,7 +1869,8 @@ function habitStats(days, today, now){
 
   h.total = habits.length;
   h.dailyCount = daily.length;
-  h.somedayCount = someday.length;
+  h.visionCount = someday.length;
+  h.somedayCount = h.visionCount;   // 兼容旧字段名
 
   /* 今日打卡：实时状态，不是日志 */
   h.todayTotal = habits.length;
@@ -1626,16 +1952,22 @@ function computeStats(days){
 
   var s = { days:days, from:from, buckets:dailyBuckets(days), habitDays:habitBuckets(days) };
 
-  /* --- 事项（四象限待办）：当前状态 --- */
+  /* --- 任务（事项）：当前状态 --- */
   var pendingTodo = todos.filter(function(t){ return !isRecur(t) && !t.done; });
-  var doneTodo    = todos.filter(function(t){ return !isRecur(t) &&  t.done; });
-  s.quadTotal  = pendingTodo.length;
+  s.pendingTasks = pendingTodo.length;
 
   s.overdue = pendingTodo.filter(isOverdue).length;
-  s.overdueRate = pct(s.overdue, s.quadTotal);
+  s.overdueRate = pct(s.overdue, s.pendingTasks);
 
-  s.quadPending = [0,0,0,0];
-  pendingTodo.forEach(function(t){ s.quadPending[quadOf(t)]++; });
+  /* 按截止时间分布：今日 / 本周 / 之后 / 无期限 */
+  var wsS = weekStartOf(now), weS = wsS + 7 * DAY;
+  s.dist = { today:0, week:0, later:0, none:0 };
+  pendingTodo.forEach(function(t){
+    if(!t.dueAt) s.dist.none++;
+    else if(t.dueAt < now + DAY) s.dist.today++;
+    else if(t.dueAt < weS) s.dist.week++;
+    else s.dist.later++;
+  });
 
   /* --- 窗口内事件：事项与习惯分开取 --- */
   var evAll = (db.log||[]).filter(function(e){ return e.at >= from; });
@@ -1768,31 +2100,37 @@ function eventStats(days, today, now){
 function cardOverview(s){
   var ratioTxt = s.created ? (s.ratio + '%') : (s.completed ? '∞' : '—');
   return '<div class="tiles">'
-    + '<div class="tile"><div class="v">'+s.quadTotal+'</div><div class="k">未完成事项</div></div>'
+    + '<div class="tile"><div class="v">'+s.pendingTasks+'</div><div class="k">未完成任务</div></div>'
     + '<div class="tile'+(s.overdue?' warn':'')+'"><div class="v">'+s.overdue+'</div><div class="k">已逾期</div></div>'
     + '<div class="tile'+(s.overdueRate>0?' warn':'')+'"><div class="v">'+s.overdueRate+'%</div><div class="k">逾期率</div></div>'
     + '<div class="tile"><div class="v">'+s.todayDone+'</div><div class="k">今日完成</div></div>'
     + '<div class="tile"><div class="v">'+s.todayCreated+'</div><div class="k">今日新增</div></div>'
     + '<div class="tile"><div class="v">'+ratioTxt+'</div><div class="k">完成/新增</div></div>'
     + '</div>'
-    + '<div class="hint" style="margin:-2px 14px 0">以上只统计<b>四象限待办</b>。习惯的指标在「习惯」子页。</div>';
+    + '<div class="hint" style="margin:-2px 14px 0">以上只统计<b>任务</b>（不含习惯与愿景）。习惯的指标在「习惯」子页。</div>';
 }
 
-function cardQuadrant(s){
-  var rows = '';
-  for(var q=0;q<4;q++){
-    var n = s.quadPending[q];
-    var p = pct(n, s.quadTotal);
-    rows += '<div class="hbar">'
-         +  '<span class="lb">'+SHORT_Q[q]+'</span>'
-         +  '<span class="track"><span class="fill" style="width:'+p+'%;background:'+QCOLORS[q]+'"></span></span>'
-         +  '<span class="num">'+n+' · '+p+'%</span>'
-         +  '</div>';
-  }
-  return '<div class="card"><h3>四象限分布<span class="sub">仅四象限待办 · '+s.quadTotal+' 条</span></h3>'
-       + (s.quadTotal ? rows
-            : '<div class="empty-stat">当前没有未完成的四象限待办。<br>新建几条，这里就会显示精力分布。</div>')
-       + '<div class="hint">理想状态是「重要不紧急」占多数。如果「重要且紧急」长期爆满，说明你在持续救火，缺少提前规划。</div>'
+/* 原来按重要/紧急分的四象限，现在重要性和紧迫感都由「星级 + 截止日期」表达，
+   这一块改成按截止时间看任务的远近分布。 */
+function cardTimeDist(s){
+  var total = s.pendingTasks;
+  var rows = [
+    ['今日', s.dist.today, 'var(--q0)'],
+    ['本周', s.dist.week,  'var(--q1)'],
+    ['之后', s.dist.later, 'var(--accent)'],
+    ['无期限', s.dist.none, 'var(--q3)']
+  ].map(function(r){
+    var p = pct(r[1], total);
+    return '<div class="hbar">'
+         +  '<span class="lb">'+r[0]+'</span>'
+         +  '<span class="track"><span class="fill" style="width:'+p+'%;background:'+r[2]+'"></span></span>'
+         +  '<span class="num">'+r[1]+' · '+p+'%</span>'
+         + '</div>';
+  }).join('');
+  return '<div class="card"><h3>时间分布<span class="sub">仅未完成任务 · '+total+' 条</span></h3>'
+       + (total ? rows
+            : '<div class="empty-stat">当前没有未完成的任务。<br>新建几条，这里就会显示它们排到了什么时候。</div>')
+       + '<div class="hint">「今日」= 24 小时内到期或已逾期；「无期限」= 还没排期的任务，建议尽快给它们一个日期。</div>'
        + '</div>';
 }
 
@@ -1813,7 +2151,7 @@ function cardHabitToday(s){
        + '<div class="hbar" style="margin:0"><span class="track" style="height:20px">'
        + '<span class="fill" style="width:'+p+'%;background:var(--accent)"></span></span></div>'
        + '<div class="hint">'+word+'。其中日度待办 '+h.todayDailyDone+' / '+h.todayDailyTotal+' 条。'
-       + (h.somedayCount ? '另有 '+h.somedayCount+' 条长期待办。' : '') + '</div></div>';
+       + (h.visionCount ? '另有 '+h.visionCount+' 条愿景。' : '') + '</div></div>';
 }
 
 function cardHabitHeat(s){
@@ -1971,8 +2309,8 @@ function cardEventNotes(s){
 }
 
 /* ---- 三个子页 ---- */
-function renderStatsQuad(s){
-  return cardOverview(s) + cardQuadrant(s);
+function renderStatsTask(s){
+  return cardOverview(s) + cardTimeDist(s);
 }
 function renderStatsHabit(s){
   return cardHabitToday(s) + cardHabitHeat(s) + cardRecur(s);
@@ -1983,10 +2321,10 @@ function renderStatsEvent(s){
 
 function renderStats(){
   var s = computeStats(ui.days);
-  var which = ui.stats || 'quad';
+  var which = ui.stats || 'task';
   var html = which === 'habit' ? renderStatsHabit(s)
            : which === 'event' ? renderStatsEvent(s)
-           : renderStatsQuad(s);
+           : renderStatsTask(s);
   document.getElementById('statsBody').innerHTML = html;
   document.querySelectorAll('#segRange button').forEach(function(b){
     b.classList.toggle('on', parseInt(b.getAttribute('data-days'),10) === ui.days);
@@ -1997,7 +2335,7 @@ function renderStats(){
 }
 
 /* 记下滚动位置：整块重绘会把它清空，勾选一条后列表会跳回顶部 */
-var SCROLL_IDS = ['ql0','ql1','ql2','ql3','quadBody','recurScroll','eventScroll','statsBody'];
+var SCROLL_IDS = ['weekBody','recurScroll','eventScroll','statsBody','monthBody'];
 function captureScroll(){
   var o = {};
   SCROLL_IDS.forEach(function(id){
@@ -2058,11 +2396,12 @@ document.getElementById('cfmYes').addEventListener('click', function(){
 /* ============ 渲染：总入口 ============ */
 function render(){
   var sc = captureScroll();
-  if(ui.tab === 'home') renderGrid();
+  if(ui.tab === 'week') renderWeek();
   if(ui.tab === 'recur') renderRecur();
   if(ui.tab === 'event') renderEvents();
   if(ui.tab === 'stats') renderStats();
-  if(ui.quad !== null) renderQuad();
+  if(document.getElementById('calDrawer').classList.contains('on')) renderCalendar();
+  if(!document.getElementById('screenMonth').classList.contains('hidden')) renderMonth();
   restoreScroll(sc);
 }
 
@@ -2125,15 +2464,11 @@ function deleteEvent(id){
 }
 
 /* ============ 编辑器 ============ */
-function openEditor(id, presetQuad, presetRecur){
+function openEditor(id, presetRecur){
   editingId = id || null;
   var t = id ? db.todos.filter(function(x){return x.id===id;})[0] : null;
 
-  document.getElementById('editTitle').textContent = t ? '编辑待办' : '新建待办';
-
   if(t){
-    draft.imp = !!t.important;
-    draft.urg = !!t.urgent;
     draft.recur = isRecur(t) ? t.recurring : 'none';
     draft.intervalDays = Math.max(1, parseInt(t.intervalDays,10) || 3);
     draft.star = normStar(t.star);
@@ -2146,42 +2481,26 @@ function openEditor(id, presetQuad, presetRecur){
     draft.recur = presetRecur || 'none';
     draft.intervalDays = 3;
     draft.star = 0;
-    if(draft.recur === 'none'){
-      var pq = (presetQuad === undefined || presetQuad === null) ? 0 : presetQuad;
-      draft.imp = QUADS[pq].imp;
-      draft.urg = QUADS[pq].urg;
-    }else{
-      draft.imp = true; draft.urg = true;
-    }
     document.getElementById('fContent').value = '';
     document.getElementById('fDue').value = '';
     document.getElementById('fRemind').value = '';
   }
 
+  var kind = draft.recur === 'someday' ? '愿景' : draft.recur === 'none' ? '任务' : '习惯';
+  document.getElementById('editTitle').textContent = (t ? '编辑' : '新建') + kind;
+
   setStar('editStar', draft.star);
   document.getElementById('fInterval').value = draft.intervalDays;
-  syncChips();
   syncRecurChips();
   document.getElementById('editDeleteRow').classList.toggle('hidden', !t);
   document.getElementById('maskEdit').classList.remove('hidden');
   if(!t) setTimeout(function(){ document.getElementById('fContent').focus(); }, 120);
-}
-function syncChips(){
-  document.getElementById('chipImp').classList.toggle('on', draft.imp);
-  document.getElementById('chipUrg').classList.toggle('on', draft.urg);
-
-  /* 提示这条会不会被「到期自动紧急」接管 */
-  var dueVal = document.getElementById('fDue').value;
-  var willAuto = draft.recur === 'none' && !draft.urg && !!dueVal
-              && ((new Date(dueVal).getTime() - Date.now()) <= DAY);
-  document.getElementById('autoUrgHint').classList.toggle('hidden', !willAuto);
 }
 function syncRecurChips(){
   document.querySelectorAll('#recurChips .chip').forEach(function(c){
     c.classList.toggle('on', c.getAttribute('data-r') === draft.recur);
   });
   document.getElementById('intervalField').classList.toggle('hidden', draft.recur !== 'interval');
-  document.getElementById('impUrgField').classList.toggle('hidden', draft.recur !== 'none');
 }
 function toDateInput(ts){
   var d = new Date(ts);
@@ -2213,8 +2532,6 @@ function saveEditor(){
       if(t.id !== editingId) return;
       var oldRecur = t.recurring;
       t.content   = content;
-      t.important = draft.imp;
-      t.urgent    = draft.urg;
       t.dueAt     = dueAt;
       t.remindAt  = remind;
       t.recurring = recur;
@@ -2231,7 +2548,6 @@ function saveEditor(){
       id: uid(), content: content,
       createdAt: Date.now(), dueAt: dueAt, remindAt: remind,
       done: false, doneAt: null,
-      important: draft.imp, urgent: draft.urg,
       deleted: false,
       recurring: recur, intervalDays: intervalDays,
       lastResetAt: recur ? Date.now() : null,
@@ -2281,8 +2597,6 @@ document.addEventListener('click', function(ev){
       if(it2) openEditor(it2.getAttribute('data-id'));
       return;
     }
-    if(act === 'add'){ openEditor(null, parseInt(el.getAttribute('data-q'),10)); return; }
-    if(act === 'bump-event'){ openEntryEditor(el.getAttribute('data-id')); return; }
     if(act === 'add-entry'){ openEntryEditor(el.getAttribute('data-id')); return; }
     if(act === 'open-event'){ openEventDetail(el.closest('.item').getAttribute('data-id')); return; }
     if(act === 'edit-event'){
@@ -2290,36 +2604,58 @@ document.addEventListener('click', function(ev){
       if(it3) openEventEditor(it3.getAttribute('data-id'));
       return;
     }
-    if(act === 'open'){
-      ui.quad = parseInt(el.getAttribute('data-q'),10);
-      document.getElementById('screenQuad').classList.remove('hidden');
-      renderQuad();
-      return;
-    }
   }
   var cl = ev.target.closest('[data-close]');
   if(cl){
     document.getElementById(cl.getAttribute('data-close')).classList.add('hidden');
-    if(cl.getAttribute('data-close') === 'screenQuad') ui.quad = null;
     return;
   }
   var tb = ev.target.closest('[data-tab]');
   if(tb){ switchTab(tb.getAttribute('data-tab')); return; }
 
-  var sb = ev.target.closest('[data-sub]');
+  var sb = ev.target.closest('#segWeek [data-sub]');
   if(sb){
     ui.sub = sb.getAttribute('data-sub');
-    document.querySelectorAll('#segHome button').forEach(function(b){
-      b.classList.toggle('on', b.getAttribute('data-sub') === ui.sub);
-    });
-    render(); return;
+    renderWeek(); return;
+  }
+  var wn = ev.target.closest('[data-week-nav]');
+  if(wn){
+    ui.weekOffset += parseInt(wn.getAttribute('data-week-nav'), 10);
+    renderWeek(); return;
+  }
+  var cn = ev.target.closest('[data-cal-nav]');
+  if(cn){
+    var cd0 = new Date(ui.calMonth || monthStartOf(weekStartSel()));
+    ui.calMonth = new Date(cd0.getFullYear(), cd0.getMonth() + parseInt(cn.getAttribute('data-cal-nav'), 10), 1, 4).getTime();
+    renderCalendar(); return;
+  }
+  var cd = ev.target.closest('[data-cal-day]');
+  if(cd){
+    var ts = parseInt(cd.getAttribute('data-cal-day'), 10);
+    ui.weekOffset = Math.round((weekStartOf(ts) - weekStartOf(Date.now())) / (7 * DAY));
+    ui.calMonth = monthStartOf(ts);
+    closeCal();
+    if(ui.tab === 'week') renderWeek(); else switchTab('week');
+    return;
+  }
+  if(ev.target.closest('#calToMonth')){
+    var calD = new Date(ui.calMonth || Date.now());
+    var nowD = new Date();
+    ui.monthOffset = (calD.getFullYear() - nowD.getFullYear()) * 12 + (calD.getMonth() - nowD.getMonth());
+    closeCal();
+    renderMonth();
+    document.getElementById('screenMonth').classList.remove('hidden');
+    return;
+  }
+  var mn = ev.target.closest('[data-month-nav]');
+  if(mn){
+    ui.monthOffset += parseInt(mn.getAttribute('data-month-nav'), 10);
+    renderMonth(); return;
   }
   var rb = ev.target.closest('[data-rtype]');
   if(rb){ ui.rtype = rb.getAttribute('data-rtype'); renderRecur(); return; }
-
   var db2 = ev.target.closest('[data-days]');
   if(db2){ ui.days = parseInt(db2.getAttribute('data-days'),10); renderStats(); return; }
-
   var sb2 = ev.target.closest('[data-stats]');
   if(sb2){ ui.stats = sb2.getAttribute('data-stats'); renderStats(); return; }
 });
@@ -2327,34 +2663,35 @@ document.addEventListener('click', function(ev){
 function switchTab(tab){
   ui.tab = tab;
   settle();                      // 先结算：跨过凌晨 4 点后切页也能看到正确状态
-  ['home','recur','event','stats'].forEach(function(t){
+  ['week','recur','event','stats'].forEach(function(t){
     document.getElementById('page-'+t).classList.toggle('hidden', t !== tab);
   });
   document.querySelectorAll('#tabbar button').forEach(function(b){
     b.classList.toggle('on', b.getAttribute('data-tab') === tab);
   });
+  document.getElementById('btnWeekAdd').classList.toggle('hidden', tab !== 'week');
   document.getElementById('btnRecurAdd').classList.toggle('hidden', tab !== 'recur');
   document.getElementById('btnEventAdd').classList.toggle('hidden', tab !== 'event');
   document.getElementById('pageTitle').textContent =
-    tab === 'home' ? '佳木的待办助手'
-    : tab === 'recur' ? '习惯'
+    tab === 'week' ? '周度'
+    : tab === 'recur' ? '习惯与愿景'
     : tab === 'event' ? '事件'
     : '数据统计';
+  if(tab === 'week') renderWeek();
   if(tab === 'recur') renderRecur();
   if(tab === 'event') renderEvents();
   if(tab === 'stats') renderStats();
 }
 
 /* 编辑弹层 */
-document.getElementById('chipImp').addEventListener('click', function(){ draft.imp = !draft.imp; syncChips(); });
-document.getElementById('chipUrg').addEventListener('click', function(){ draft.urg = !draft.urg; syncChips(); });
-document.getElementById('fDue').addEventListener('change', syncChips);
-document.getElementById('fDue').addEventListener('input', syncChips);
 document.getElementById('recurChips').addEventListener('click', function(ev){
   var c = ev.target.closest('[data-r]');
   if(!c) return;
   draft.recur = c.getAttribute('data-r');
   if(draft.recur === 'interval' && !draft.intervalDays) draft.intervalDays = 3;
+  /* 标题跟着类型走：任务 / 习惯 / 愿景 */
+  var kind = draft.recur === 'someday' ? '愿景' : draft.recur === 'none' ? '任务' : '习惯';
+  document.getElementById('editTitle').textContent = (editingId ? '编辑' : '新建') + kind;
   syncRecurChips();
 });
 document.getElementById('btnCancel').addEventListener('click', closeEditor);
@@ -2375,14 +2712,24 @@ document.getElementById('btnDelete').addEventListener('click', function(){
 document.getElementById('maskEdit').addEventListener('click', function(ev){
   if(ev.target === this) closeEditor();
 });
-document.getElementById('quadAdd').addEventListener('click', function(){
-  if(ui.quad !== null) openEditor(null, ui.quad);
+document.getElementById('btnWeekAdd').addEventListener('click', function(){
+  openEditor(null, null);
 });
 document.getElementById('btnRecurAdd').addEventListener('click', function(){
-  openEditor(null, null, ui.rtype);
+  openEditor(null, ui.rtype);
 });
 document.getElementById('btnEventAdd').addEventListener('click', function(){
   openEventEditor(null);
+});
+
+/* 日历抽屉 / 月度页 */
+document.getElementById('btnWeekCal').addEventListener('click', openCal);
+document.getElementById('calClose').addEventListener('click', closeCal);
+document.getElementById('calMask').addEventListener('click', closeCal);
+document.getElementById('btnMonthPage').addEventListener('click', function(){
+  ui.monthOffset = 0;
+  renderMonth();
+  document.getElementById('screenMonth').classList.remove('hidden');
 });
 
 /* 事件「记一次」弹层 */
@@ -2437,22 +2784,26 @@ function menuInfoHTML(which){
     return '<div class="ib"><h4>这个工具是干什么的</h4>'
       + '<p>它不是又一个「待办清单」。它是把<b>三类完全不同的事分开管</b>，'
       + '因为它们的「成功」根本不是一回事：</p>'
-      + '<p><b>📋 待办</b>（主页四象限）—— 做完就结束的事。按「重要 / 紧急」自动归位，'
-      + '距截止不到 24 小时自动跳到紧急那边。看的是<b>你有多少事在手上、有多少已经逾期</b>。</p>'
+      + '<p><b>🗓 周度</b>（主页）—— 做完就结束的任务。只保留<b>星级和截止日期</b>两个属性，'
+      + '按「今日 / 本周 / 之后 / 无期限」自动分组；同星级按截止时间近的排前面。'
+      + '右侧日历可以回看任意一周的完成情况，也能进月度页看每月的规划 / 未完成 / 已完成。</p>'
       + '<p><b>🔄 习惯</b>（习惯页）—— 要反复做的事。每天或每隔 N 天在凌晨 4 点自动刷新，'
       + '记录连续天数和历史最长连击。看的是<b>你有没有坚持住</b>。</p>'
+      + '<p><b>🌱 愿景</b>—— 原来叫「长期」，是没有期限的长期方向。放在习惯页的第三个子页，'
+      + '不会自动刷新；需要时也可以给它一个截止日期，让它进入周度安排。</p>'
       + '<p><b>🏊 事件</b>（事件页）—— 只记次数和心得的事。每做一次记一条，可以顺手写下这次的感受和下次的改进。'
       + '看的是<b>你多久做一次、每次有什么进步</b>。</p>'
-      + '<h4 style="margin-top:14px">为什么这样分</h4>'
-      + '<p>如果混在一起，习惯每天打一次卡会被算成「新增完成」，一个月下来「净流入」「重要不紧急占比」这些数字全部失真。'
-      + '分开之后每套指标各自成立。</p>'
+      + '<h4 style="margin-top:14px">为什么去掉「重要 / 紧急」</h4>'
+      + '<p>因为<b>星级已经表达重要性，截止日期已经表达紧迫性</b>。再挂两个开关，等于同一件事说两遍，'
+      + '而且很容易和「我到底该先做哪个」打架。现在只有一个排序规则：星级高的先做，同星级里快到期的先做。</p>'
       + '<h4 style="margin-top:14px">用得久的三个好处</h4>'
       + '<p><b>① 看得见积累。</b>「今年游了 40 次」「连续 30 天没断」——这种数字单靠记忆是攒不出来的。</p>'
-      + '<p><b>② 知道该舍什么。</b>逾期率和四象限分布会告诉你是不是一直在救火、长期事项被压后了多久。</p>'
+      + '<p><b>② 知道该舍什么。</b>逾期率和时间分布会告诉你是不是一直在救火、多少任务拖着没有排期。</p>'
       + '<p><b>③ 数据在你自己手里。</b>全部存在手机浏览器里，不上传服务器；'
       + '可以导出备份，也可以导出成 Markdown 交给 AI 帮你分析。</p>'
       + '<h4 style="margin-top:14px">一些设计取舍</h4>'
       + '<p>· 「一天」的分界线是<b>凌晨 4 点</b>，不是 0 点——熬夜到两三点打卡仍算当天。</p>'
+      + '<p>· 一周从<b>周一凌晨 4 点</b>开始；「本周末前」指到周日结束。</p>'
       + '<p>· 统计页只留有用的卡片，趋势图那类看着热闹但不指导决策的，删掉了。</p>'
       + '<p>· 每点一次 ＋ 记一次事件，会自动记下时间，你只管补内容。</p>'
       + '</div>';
@@ -2463,7 +2814,7 @@ function menuInfoHTML(which){
     + '<p class="mail">' + SUGGEST_MAIL + '</p>'
     + '<p>写清楚这几点我会更好处理：</p>'
     + '<p>1. <b>你想要的或遇到的问题</b>（一句话说清）<br>'
-    + '2. <b>在哪个页面</b>（待办 / 习惯 / 事件 / 数据统计）<br>'
+    + '2. <b>在哪个页面</b>（周度 / 月度 / 习惯 / 事件 / 数据统计）<br>'
     + '3. 如果有截图，附上一张</p>'
     + '<p>不保证每条都改，但每条都会看。</p></div>';
 }
@@ -2525,13 +2876,12 @@ function exportForAI(){
   var now = Date.now();
   var L = [];
   var act = active();
-  var quad = [[],[],[],[]], recurDaily = [], recurInterval = [], recurSomeday = [];
+  var recurDaily = [], recurInterval = [], recurSomeday = [], tasks = [];
   act.forEach(function(t){
-    if(isRecur(t)){
-      if(t.recurring === 'daily') recurDaily.push(t);
-      else if(t.recurring === 'interval') recurInterval.push(t);
-      else recurSomeday.push(t);
-    }else quad[quadOf(t)].push(t);
+    if(t.recurring === 'daily') recurDaily.push(t);
+    else if(t.recurring === 'interval') recurInterval.push(t);
+    else if(t.recurring === 'someday') recurSomeday.push(t);
+    else tasks.push(t);
   });
 
   function stars(v){ var s = starText(v); return s ? s : '未打星'; }
@@ -2544,26 +2894,38 @@ function exportForAI(){
   L.push('');
   L.push('> 这是个人待办工具导出的原始数据。请帮我分析时间分配、习惯坚持情况和值得注意的模式。');
   L.push('');
-  L.push('## 一、待办事项（四象限）');
+  L.push('## 一、任务（按截止时间分组）');
   L.push('');
-  L.push('共 ' + (act.length - recurDaily.length - recurInterval.length - recurSomeday.length) + ' 条，分四个象限。');
+  L.push('共 ' + tasks.length + ' 条，其中未完成 ' + tasks.filter(function(t){ return !t.done; }).length + ' 条。');
   L.push('');
-  ['重要且紧急','不重要但紧急','重要不紧急','不重要不紧急'].forEach(function(name, q){
-    L.push('### ' + name + '（' + quad[q].length + ' 条）');
+  var wsE = weekStartOf(now), weE = wsE + 7 * DAY;
+  var buckets = [
+    ['今日（24 小时内 / 已逾期）', []],
+    ['本周（本周末前）', []],
+    ['之后', []],
+    ['无期限', []]
+  ];
+  tasks.slice().sort(weekSort).forEach(function(t){
+    if(!t.dueAt) buckets[3][1].push(t);
+    else if(t.dueAt < now + DAY) buckets[0][1].push(t);
+    else if(t.dueAt < weE) buckets[1][1].push(t);
+    else buckets[2][1].push(t);
+  });
+  buckets.forEach(function(b){
+    L.push('### ' + b[0] + '（' + b[1].length + ' 条）');
     L.push('');
-    if(!quad[q].length){ L.push('（空）'); L.push(''); return; }
-    L.push('| 内容 | 状态 | 重要程度 | 截止 | 创建 | 完成 |');
+    if(!b[1].length){ L.push('（空）'); L.push(''); return; }
+    L.push('| 内容 | 状态 | 星级 | 截止 | 创建 | 完成 |');
     L.push('|---|---|---|---|---|---|');
-    quad[q].forEach(function(t){
+    b[1].forEach(function(t){
       L.push('| ' + t.content.replace(/\|/g,'\\|') + ' | ' + (t.done?'已完成':'未完成')
         + ' | ' + stars(t.star) + ' | ' + when(t.dueAt) + ' | ' + when(t.createdAt)
         + ' | ' + (t.done ? when(t.doneAt) : '—') + ' |');
     });
     L.push('');
   });
-  var doneTodo = quad.reduce(function(a, arr){ return a.concat(arr.filter(function(t){ return t.done; })); }, []);
-  var pendTodo = quad.reduce(function(a, arr){ return a.concat(arr.filter(function(t){ return !t.done; })); }, []);
-  L.push('小结：未完成 ' + pendTodo.length + ' 条，已完成 ' + doneTodo.length + ' 条，'
+  var pendTodo = tasks.filter(function(t){ return !t.done; });
+  L.push('小结：未完成 ' + pendTodo.length + ' 条，已完成 ' + tasks.filter(function(t){ return t.done; }).length + ' 条，'
     + '其中逾期 ' + pendTodo.filter(isOverdue).length + ' 条。');
   L.push('');
 
@@ -2578,7 +2940,7 @@ function exportForAI(){
     });
   }
 
-  L.push('## 二、习惯（周期待办）');
+  L.push('## 二、习惯 / 愿景');
   L.push('');
   function habitBlock(title, list){
     L.push('### ' + title + '（' + list.length + ' 条）');
@@ -2601,9 +2963,9 @@ function exportForAI(){
     });
     L.push('');
   }
-  habitBlock('每日', recurDaily);
+  habitBlock('日度', recurDaily);
   habitBlock('每 N 天', recurInterval);
-  habitBlock('长期（不刷新）', recurSomeday);
+  habitBlock('愿景（不刷新）', recurSomeday);
 
   /* 连击：算一次填进上面的输出里 */
   L.push('## 三、事件（每次发生一条记录）');
@@ -2628,7 +2990,7 @@ function exportForAI(){
 
   L.push('## 四、请帮我分析');
   L.push('');
-  L.push('1. 我的时间分配合理吗？四象限分布说明什么？');
+  L.push('1. 我的时间分配合理吗？按截止时间看，哪些任务一直在拖、哪些该砍掉？');
   L.push('2. 哪些习惯在退步？按完成率和最近中断情况排个序。');
   L.push('3. 事件记录里有没有反复出现的问题或进步？');
   L.push('4. 有没有我忽略的模式，或者该砍掉的事？');
@@ -2721,7 +3083,7 @@ migrate();
 settle();
 snapshot();               // 每天首次打开留一份快照
 render();
-switchTab('home');
+switchTab('week');
 
 document.addEventListener('visibilitychange', function(){
   /* 从后台切回时也补一次快照：iOS 从主屏图标恢复页面通常不会重新 load，
